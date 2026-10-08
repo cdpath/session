@@ -1,0 +1,12 @@
+/session
+/dist/
+*.test
+*.out
+.DS_Store
+
+# Never commit real agent session data. Test fixtures are generated in temp dirs.
+*.jsonl
+.factory/
+.claude/
+.codex/
+.pi/
