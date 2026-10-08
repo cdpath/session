@@ -4,7 +4,6 @@ package tui
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"time"
 
@@ -106,6 +105,14 @@ type model struct {
 
 // Run shows the picker and returns the chosen session, or nil if the user quit.
 func Run(cfg Config) (*agent.Session, error) {
+	final, err := tea.NewProgram(newModel(cfg), tea.WithAltScreen()).Run()
+	if err != nil {
+		return nil, err
+	}
+	return final.(model).choice, nil
+}
+
+func newModel(cfg Config) model {
 	m := model{
 		cfg:   cfg,
 		tab:   key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "agent")),
@@ -119,20 +126,7 @@ func Run(cfg Config) (*agent.Session, error) {
 	l.AdditionalFullHelpKeys = l.AdditionalShortHelpKeys
 	m.list = l
 	m.applyAgentFilter()
-
-	// Terminals disagree with lipgloss about the width of some characters
-	// (East Asian ambiguous-width punctuation like — “ ” →, emoji with
-	// variation selectors). If a row is wider than the terminal thinks fits, it
-	// wraps and scrolls the header off screen. With auto-wrap off, an
-	// overlong row is clipped at the right edge instead.
-	fmt.Fprint(os.Stdout, ansi.ResetModeAutoWrap)
-	defer fmt.Fprint(os.Stdout, ansi.SetModeAutoWrap)
-
-	final, err := tea.NewProgram(m, tea.WithAltScreen()).Run()
-	if err != nil {
-		return nil, err
-	}
-	return final.(model).choice, nil
+	return m
 }
 
 func (m *model) currentAgent() string {
@@ -156,7 +150,17 @@ func (m *model) applyAgentFilter() {
 		items[i] = item{row: r}
 	}
 	m.list.SetItems(items)
+	m.fixPagination()
 	m.list.Title = m.title()
+}
+
+// fixPagination works around bubbles' list sizing a page with the pagination
+// height of the previous item set: going from one page to several (switching
+// agents, clearing a filter) made the view a line taller than the window, and
+// bubbletea then dropped the top line, i.e. the header. Re-applying the size
+// recomputes the page with the current page count.
+func (m *model) fixPagination() {
+	m.list.SetSize(m.list.Width(), m.list.Height())
 }
 
 func (m *model) title() string {
@@ -198,6 +202,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
+	m.fixPagination()
 	return m, cmd
 }
 
