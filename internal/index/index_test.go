@@ -252,13 +252,13 @@ func TestGlobalAndRecursiveScopes(t *testing.T) {
 		droid d-root "root" turns=1
 	`)
 
-	opts.Recursive = true
+	opts.Scope = index.Subdirs
 	assertList(t, f.list(opts), `
 		claude c-sub "sub" turns=1
 		droid d-root "root" turns=1
 	`)
 
-	opts.Global = true
+	opts.Scope = index.All
 	assertList(t, f.list(opts), `
 		codex x-else "else" turns=1
 		pi p-sibling "sibling" turns=1
@@ -287,6 +287,37 @@ func TestSymlinkedDirectoryMatches(t *testing.T) {
 	assertList(t, f.list(f.options(real)), want)
 }
 
+func TestSessionRecordedUnderSymlinkMatchesRealPath(t *testing.T) {
+	f := newFixture(t)
+	real := f.project("real/app")
+	link := filepath.Join(f.home, "link-app")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+	f.droidSession(link, "d-link", 1, nil, droidUser("droid"))
+	f.piSession(link, "p-link", 2, nil, piUser("pi"))
+
+	assertList(t, f.list(f.options(real)), `
+		pi p-link "pi" turns=1
+		droid d-link "droid" turns=1
+	`)
+}
+
+func TestSubagentInAnotherDirectoryStaysUnderParent(t *testing.T) {
+	f := newFixture(t)
+	proj := f.project("proj")
+	sub := f.project("proj/pkg")
+	parent := f.piSession(proj, "p-parent", 1, nil, piUser("main"))
+	f.piSession(sub, "p-sub", 2, obj{"parentSession": parent}, piUser("helper"))
+	f.droidSession(proj, "d-parent", 3, nil, droidUser("main"))
+	f.droidSession(sub, "d-sub", 4, obj{"callingSessionId": "d-parent"}, droidUser("helper"))
+
+	assertList(t, f.list(f.options(proj)), `
+		droid d-parent "main" turns=1 +1 sub
+		pi p-parent "main" turns=1 +1 sub
+	`)
+}
+
 func TestUnresumableSessionsAreMarked(t *testing.T) {
 	f := newFixture(t)
 	proj := f.project("proj")
@@ -296,7 +327,7 @@ func TestUnresumableSessionsAreMarked(t *testing.T) {
 	f.droidSession(gone, "d-gone", 1, nil, droidUser("dir removed"))
 
 	opts := f.options(proj)
-	opts.Global = true
+	opts.Scope = index.All
 	assertList(t, f.list(opts), `
 		pi p1 "pi not installed" turns=1 problem="pi is not installed"
 		droid d-gone "dir removed" turns=1 problem="directory no longer exists: `+gone+`"

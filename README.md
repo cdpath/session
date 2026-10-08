@@ -26,7 +26,7 @@ Until the repo has release tags, `go install …@latest` can lag behind because 
 GOPROXY=direct go install github.com/cdpath/session/cmd/session@main
 ```
 
-In the picker: `↑/↓` or `j/k` to move, `/` to filter, `Tab` to switch agent, `Enter` to resume, `q` to quit.
+In the picker: `↑/↓` or `j/k` to move, `/` to filter, `Tab` to switch agent, `s` to switch scope (current directory → with subdirectories → all directories), `Enter` to resume, `q` to quit. `-r` and `-g` choose the scope the picker starts in.
 
 On Enter, `session` changes into the session's original directory and replaces itself with the agent:
 
@@ -45,4 +45,4 @@ Session metadata is cached in your user cache directory (`~/Library/Caches/sessi
 
 `session` reads each agent's session files directly. Those formats are undocumented and may change; unreadable files are skipped rather than breaking the list. macOS and Linux only.
 
-See [docs/prd/0001-session-cli.md](docs/prd/0001-session-cli.md) for the full design.
+See [docs/prd](docs/prd) for the full design.

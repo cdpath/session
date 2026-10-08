@@ -118,11 +118,22 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	env := agent.OSEnv()
+	interactive := !f.json && isTerminal(os.Stdout) && isTerminal(os.Stdin)
+	scope := index.Here
+	switch {
+	case f.global:
+		scope = index.All
+	case f.recursive:
+		scope = index.Subdirs
+	}
+	listScope := scope
+	if interactive {
+		listScope = index.All // the picker switches scope in memory
+	}
 	res, err := index.List(index.Options{
 		Env:          env,
 		Cwd:          cwd,
-		Global:       f.global,
-		Recursive:    f.recursive,
+		Scope:        listScope,
 		Subagents:    f.subagents,
 		Headless:     f.headless,
 		Agents:       agents,
@@ -156,32 +167,24 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	if len(res.Sessions) == 0 {
-		where := "in " + display.ShortPath(cwd, env.Home)
-		if f.global {
-			where = "anywhere"
-		}
-		hint := ""
-		if !f.global {
-			hint = " (try -r or -g)"
+		where, hint := "in "+display.ShortPath(cwd, env.Home), " (try -r or -g)"
+		if listScope == index.All {
+			where, hint = "anywhere", ""
 		}
 		fmt.Fprintf(stderr, "No sessions found %s%s.\n", where, hint)
 		return 0
 	}
 
-	if !isTerminal(os.Stdout) || !isTerminal(os.Stdin) {
+	if !interactive {
 		printTable(stdout, res.Sessions, f.global, env.Home)
 		return 0
 	}
 
-	heading := display.ShortPath(cwd, env.Home)
-	if f.global {
-		heading = "all directories"
-	}
 	choice, err := tui.Run(tui.Config{
 		Sessions: res.Sessions,
-		Global:   f.global,
+		Dir:      cwd,
+		Scope:    scope,
 		Home:     env.Home,
-		Heading:  heading,
 		Agents:   presentAgents(res.Sessions, names),
 	})
 	if err != nil {

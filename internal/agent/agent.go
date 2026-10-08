@@ -72,20 +72,12 @@ func (e Env) Dir(envVar string, rel ...string) string {
 	return filepath.Join(append([]string{e.Home}, rel...)...)
 }
 
-// Scope tells a provider which session files are worth parsing. It is only a
-// pre-filter: the index verifies each parsed session's cwd itself.
-type Scope struct {
-	Global    bool
-	Dirs      []string // spellings of the target directory (raw and symlink-resolved)
-	Recursive bool
-}
-
 // Provider knows everything specific to one agent.
 type Provider interface {
 	Name() string
 	Binary() string
-	// Candidates lists session files that may belong to the scope.
-	Candidates(env Env, scope Scope) ([]string, error)
+	// Files lists every session file the agent has stored.
+	Files(env Env) ([]string, error)
 	// Parse reads one session file. A nil session with nil error means the file
 	// is not a session and should be ignored.
 	Parse(path string) (*Session, error)

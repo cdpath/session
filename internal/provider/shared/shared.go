@@ -8,9 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"unicode"
-
-	"github.com/cdpath/session/internal/agent"
 )
 
 // ErrStop ends EachLine early without reporting an error.
@@ -53,25 +50,9 @@ func trimEOL(b []byte) []byte {
 	return b
 }
 
-// comparableName reduces a path or an agent's encoded directory name to a
-// form where the two can be compared. Agents encode cwd into directory names
-// lossily and inconsistently ('/', '.', '_', '~' may all become '-'), so the
-// encoded name can't be decoded; instead both sides are squashed the same way.
-func comparableName(s string) string {
-	var b strings.Builder
-	for _, r := range s {
-		if r > unicode.MaxASCII || unicode.IsLetter(r) || unicode.IsDigit(r) {
-			b.WriteRune(r)
-		} else {
-			b.WriteByte('-')
-		}
-	}
-	return strings.Trim(b.String(), "-")
-}
-
-// ProjectDirs returns subdirectories of root whose encoded name could
-// correspond to the scope. In global scope it returns all of them.
-func ProjectDirs(root string, scope agent.Scope) ([]string, error) {
+// ProjectDirs returns the per-project subdirectories of root. Their names
+// encode the cwd lossily, so the index matches on the cwd inside each file.
+func ProjectDirs(root string) ([]string, error) {
 	entries, err := os.ReadDir(root)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
@@ -79,38 +60,19 @@ func ProjectDirs(root string, scope agent.Scope) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	var targets []string
-	for _, d := range scope.Dirs {
-		targets = append(targets, comparableName(d))
-	}
 	var out []string
 	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		if scope.Global || matchesAny(comparableName(e.Name()), targets, scope.Recursive) {
+		if e.IsDir() {
 			out = append(out, filepath.Join(root, e.Name()))
 		}
 	}
 	return out, nil
 }
 
-func matchesAny(name string, targets []string, recursive bool) bool {
-	for _, t := range targets {
-		if name == t {
-			return true
-		}
-		if recursive && (t == "" || strings.HasPrefix(name, t+"-")) {
-			return true
-		}
-	}
-	return false
-}
-
-// ProjectSessions lists *.jsonl files in the project directories of root that
-// may belong to the scope; the layout pi and Droid share.
-func ProjectSessions(root string, scope agent.Scope) ([]string, error) {
-	dirs, err := ProjectDirs(root, scope)
+// ProjectSessions lists *.jsonl files in the project directories of root;
+// the layout pi and Droid share.
+func ProjectSessions(root string) ([]string, error) {
+	dirs, err := ProjectDirs(root)
 	if err != nil {
 		return nil, err
 	}

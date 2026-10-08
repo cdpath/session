@@ -3,13 +3,10 @@
 package index
 
 import (
-	"maps"
 	"os"
-	"path/filepath"
 	"runtime"
 	"slices"
 	"sort"
-	"strings"
 	"sync"
 
 	"github.com/cdpath/session/internal/agent"
@@ -28,8 +25,7 @@ type Options struct {
 	Env       agent.Env
 	Providers []agent.Provider // defaults to Providers()
 	Cwd       string
-	Global    bool
-	Recursive bool
+	Scope     Scope    // which directories, relative to Cwd, to list
 	Subagents bool     // show sub-agent sessions as a tree instead of hiding them
 	Headless  bool     // include sessions started by SDKs and integrations
 	Agents    []string // restrict to these agent names; empty means all
@@ -60,18 +56,6 @@ func List(opts Options) (Result, error) {
 	if providers == nil {
 		providers = Providers()
 	}
-	if len(opts.Agents) > 0 {
-		var keep []agent.Provider
-		for _, p := range providers {
-			if slices.Contains(opts.Agents, p.Name()) {
-				keep = append(keep, p)
-			}
-		}
-		providers = keep
-	}
-	target := normalize(opts.Cwd)
-	scope := agent.Scope{Global: opts.Global, Recursive: opts.Recursive, Dirs: unique(filepath.Clean(opts.Cwd), target)}
-
 	cache := cacheState{entries: map[string]cacheEntry{}}
 	if opts.CachePath != "" && !opts.NoCache {
 		cache.path = opts.CachePath
@@ -80,7 +64,10 @@ func List(opts Options) (Result, error) {
 		}
 	}
 
-	all, skipped, err := scan(opts.Env, providers, scope, cache)
+	// Every file is read whatever the scope or agent filter: sub-agents may run
+	// elsewhere than their parent, only the in-file cwd says where a session
+	// belongs, and the cache is rewritten from what this run saw.
+	all, skipped, err := scan(opts.Env, providers, cache)
 	if err != nil {
 		return Result{}, err
 	}
@@ -89,7 +76,8 @@ func List(opts Options) (Result, error) {
 	providerOf := map[*agent.Session]agent.Provider{}
 	for _, p := range all {
 		s := p.session
-		if s.Turns == 0 || (s.Headless && !opts.Headless) {
+		if s.Turns == 0 || (s.Headless && !opts.Headless) ||
+			(len(opts.Agents) > 0 && !slices.Contains(opts.Agents, s.Agent)) {
 			continue
 		}
 		byKey[key(s.Agent, s.ID)] = s
@@ -114,14 +102,7 @@ func List(opts Options) (Result, error) {
 		}
 	}
 
-	visible := roots[:0]
-	for _, s := range roots {
-		// A sub-agent tree belongs to wherever its root session ran.
-		if !opts.Global && !inScope(normalize(s.Cwd), target, opts.Recursive) {
-			continue
-		}
-		visible = append(visible, s)
-	}
+	visible := NewScoper(opts.Cwd).Filter(roots, opts.Scope)
 
 	check := &problems{lookPath: opts.LookPath, bins: map[string]bool{}, dirs: map[string]bool{}}
 	walk(visible, func(s *agent.Session) {
@@ -166,14 +147,14 @@ type cacheState struct {
 	entries map[string]cacheEntry
 }
 
-func scan(env agent.Env, providers []agent.Provider, scope agent.Scope, cache cacheState) ([]parsed, []Skip, error) {
+func scan(env agent.Env, providers []agent.Provider, cache cacheState) ([]parsed, []Skip, error) {
 	type job struct {
 		provider agent.Provider
 		path     string
 	}
 	var jobs []job
 	for _, p := range providers {
-		files, err := p.Candidates(env, scope)
+		files, err := p.Files(env)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -227,13 +208,7 @@ func scan(env agent.Env, providers []agent.Provider, scope agent.Scope, cache ca
 	wg.Wait()
 
 	if cache.path != "" {
-		entries := seen
-		if !scope.Global {
-			// keep entries from other directories that this run did not visit
-			entries = maps.Clone(cache.entries)
-			maps.Copy(entries, seen)
-		}
-		if err := saveCache(cache.path, entries); err != nil {
+		if err := saveCache(cache.path, seen); err != nil {
 			skipped = append(skipped, Skip{Path: cache.path, Err: err})
 		}
 	}
@@ -295,39 +270,4 @@ func sortByUpdated(ss []*agent.Session) {
 		}
 		return ss[i].ID < ss[j].ID
 	})
-}
-
-// normalize cleans p and resolves symlinks when the path still exists, so
-// /tmp and /private/tmp (or a symlinked project) compare equal.
-func normalize(p string) string {
-	if p == "" {
-		return ""
-	}
-	p = filepath.Clean(p)
-	if r, err := filepath.EvalSymlinks(p); err == nil {
-		return r
-	}
-	return p
-}
-
-func inScope(cwd, target string, recursive bool) bool {
-	if cwd == target {
-		return true
-	}
-	if !recursive {
-		return false
-	}
-	return strings.HasPrefix(cwd, strings.TrimSuffix(target, string(filepath.Separator))+string(filepath.Separator))
-}
-
-func unique(ss ...string) []string {
-	var out []string
-	seen := map[string]bool{}
-	for _, s := range ss {
-		if s != "" && !seen[s] {
-			seen[s] = true
-			out = append(out, s)
-		}
-	}
-	return out
 }

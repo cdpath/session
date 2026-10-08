@@ -25,8 +25,8 @@ func root(env agent.Env) string {
 	return filepath.Join(env.Dir("PI_CODING_AGENT_DIR", ".pi", "agent"), "sessions")
 }
 
-func (Provider) Candidates(env agent.Env, scope agent.Scope) ([]string, error) {
-	return shared.ProjectSessions(root(env), scope)
+func (Provider) Files(env agent.Env) ([]string, error) {
+	return shared.ProjectSessions(root(env))
 }
 
 type line struct {

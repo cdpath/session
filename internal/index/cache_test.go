@@ -41,6 +41,26 @@ func TestCacheReusesUnchangedFiles(t *testing.T) {
 	assertList(t, f.list(opts), `droid d1 "Bravo" turns=1`+"\n")
 }
 
+func TestAgentFilterKeepsOtherAgentsCached(t *testing.T) {
+	f := newFixture(t)
+	proj := f.project("proj")
+	path := f.droidSession(proj, "d1", 1, obj{"title": "Alpha"}, droidUser("q"))
+	f.codexSession(proj, "x1", 2, nil, "hello")
+	opts := f.options(proj)
+	opts.CachePath = filepath.Join(f.home, "cache", "index.json")
+	f.list(opts)
+	f.rewriteSameSize(path, "Alpha", "Bravo", 1)
+
+	codexOnly := opts
+	codexOnly.Agents = []string{"codex"}
+	assertList(t, f.list(codexOnly), `codex x1 "hello" turns=1`+"\n")
+
+	assertList(t, f.list(opts), `
+		codex x1 "hello" turns=1
+		droid d1 "Alpha" turns=1
+	`)
+}
+
 func TestCacheReparsesModifiedFiles(t *testing.T) {
 	f := newFixture(t)
 	proj := f.project("proj")

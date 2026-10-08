@@ -20,10 +20,10 @@ func root(env agent.Env) string {
 	return filepath.Join(env.Dir("CLAUDE_CONFIG_DIR", ".claude"), "projects")
 }
 
-// Candidates returns main sessions (<project>/<uuid>.jsonl) and sub-agent
+// Files returns main sessions (<project>/<uuid>.jsonl) and sub-agent
 // transcripts (<project>/<parent-uuid>/subagents/agent-*.jsonl).
-func (Provider) Candidates(env agent.Env, scope agent.Scope) ([]string, error) {
-	dirs, err := shared.ProjectDirs(root(env), scope)
+func (Provider) Files(env agent.Env) ([]string, error) {
+	dirs, err := shared.ProjectDirs(root(env))
 	if err != nil {
 		return nil, err
 	}

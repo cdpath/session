@@ -20,9 +20,8 @@ func (Provider) Binary() string { return "codex" }
 
 func home(env agent.Env) string { return env.Dir("CODEX_HOME", ".codex") }
 
-// Candidates always returns every rollout: Codex organises files by date, so
-// the cwd is only known after reading each file's first line.
-func (Provider) Candidates(env agent.Env, _ agent.Scope) ([]string, error) {
+// Files returns every rollout under the date-organised sessions tree.
+func (Provider) Files(env agent.Env) ([]string, error) {
 	var files []string
 	err := filepath.WalkDir(filepath.Join(home(env), "sessions"), func(p string, d fs.DirEntry, err error) error {
 		if err != nil {

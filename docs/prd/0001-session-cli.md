@@ -218,12 +218,11 @@ Each provider produces records with: agent, session ID, source file path, workin
 
 - All four agents' on-disk formats are undocumented and can change with any release; the tool is deliberately tolerant (skip and report) rather than strict.
 - Droid sub-agent sessions are numerous on this machine (~a third of all Droid sessions), which is why hiding them by default matters.
-- Directory pre-filter: instead of reproducing each agent's exact encoding, both the encoded directory name and the target path are reduced to letters, digits, and non-ASCII characters separated by `-`, then compared. The in-file cwd check remains the source of truth.
+- Directory pre-filter (removed by PRD 0002, which always scans every directory): instead of reproducing each agent's exact encoding, both the encoded directory name and the target path are reduced to letters, digits, and non-ASCII characters separated by `-`, then compared. The in-file cwd check remains the source of truth.
 
 ### Known limitations (found during implementation)
 
-- In current-directory mode, pi and Droid only read the project directories matching the current directory. A sub-agent that ran in a different directory than its parent would not appear in the parent's tree. On the author's machine all 171 pi and Droid sub-agents share their parent's cwd.
-- Sessions recorded under a symlinked path are not found when listing from the resolved real path (the reverse works). Agents normally record the physical path, so this is rare.
-- Codex rollouts are parsed in full even in current-directory mode; the cache makes this a one-time cost per file.
-- Tab cycles only through agents that have sessions in the current listing.
+- Codex rollouts are parsed in full on first sight; the cache makes this a one-time cost per file.
+- Tab cycles through agents that have sessions in any directory (changed by PRD 0002).
 - Orphaned sub-agents are only shown with `--subagents`, consistent with sub-agents being hidden by default.
+- PRD 0002 replaced the per-directory pre-filter with a full scan, which fixed two earlier limitations: sub-agents running in a different directory from their parent, and sessions recorded under a symlinked path when listing from the real path.
