@@ -17,6 +17,13 @@ session --subagents     # show sub-agent sessions as a tree under their parent
 session --headless      # include SDK / integration sessions
 session --json          # machine-readable output
 session -- --model x    # append arguments to the resume command
+session -v              # print the version (include it in bug reports)
+```
+
+Until the repo has release tags, `go install …@latest` can lag behind because the Go module proxy caches it. To get the newest commit:
+
+```sh
+GOPROXY=direct go install github.com/cdpath/session/cmd/session@main
 ```
 
 In the picker: `↑/↓` or `j/k` to move, `/` to filter, `Tab` to switch agent, `Enter` to resume, `q` to quit.

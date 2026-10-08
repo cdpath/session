@@ -38,6 +38,7 @@ Flags:
       --no-cache       do not read or write the metadata cache
       --rebuild-cache  re-parse every session file and rewrite the cache
       --debug          report files that could not be parsed
+  -v, --version        print the version and exit
 
 Arguments after -- are appended to the agent's resume command.
 `
@@ -48,7 +49,7 @@ func main() {
 
 type flags struct {
 	global, recursive, subagents, headless, json bool
-	noCache, rebuildCache, debug                 bool
+	noCache, rebuildCache, debug, version        bool
 	agents                                       string
 }
 
@@ -81,11 +82,18 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.BoolVar(&f.noCache, "no-cache", false, "")
 	fs.BoolVar(&f.rebuildCache, "rebuild-cache", false, "")
 	fs.BoolVar(&f.debug, "debug", false, "")
+	for _, n := range []string{"v", "version"} {
+		fs.BoolVar(&f.version, n, false, "")
+	}
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
 		}
 		return 2
+	}
+	if f.version {
+		fmt.Fprintln(stdout, versionString())
+		return 0
 	}
 	if fs.NArg() > 0 {
 		fmt.Fprintf(stderr, "session: unexpected argument %q (pass agent arguments after --)\n", fs.Arg(0))
