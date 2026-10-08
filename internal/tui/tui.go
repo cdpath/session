@@ -4,6 +4,7 @@ package tui
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -118,6 +119,14 @@ func Run(cfg Config) (*agent.Session, error) {
 	l.AdditionalFullHelpKeys = l.AdditionalShortHelpKeys
 	m.list = l
 	m.applyAgentFilter()
+
+	// Terminals disagree with lipgloss about the width of some characters
+	// (East Asian ambiguous-width punctuation like — “ ” →, emoji with
+	// variation selectors). If a row is wider than the terminal thinks fits, it
+	// wraps and scrolls the header off screen. With auto-wrap off, an
+	// overlong row is clipped at the right edge instead.
+	fmt.Fprint(os.Stdout, ansi.ResetModeAutoWrap)
+	defer fmt.Fprint(os.Stdout, ansi.SetModeAutoWrap)
 
 	final, err := tea.NewProgram(m, tea.WithAltScreen()).Run()
 	if err != nil {
