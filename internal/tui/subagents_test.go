@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/cdpath/session/internal/agent"
 	"github.com/cdpath/session/internal/index"
@@ -50,8 +51,8 @@ func TestRightExpandsOneLevelAtATime(t *testing.T) {
 	m := send(start(family()), press("right"))
 	assertRows(t, m,
 		"> droid 1h ago 1 plan −3 sub",
-		"droid 2h ago 1 ├─ build +1 sub",
-		"droid 4h ago 1 └─ docs",
+		"├─ droid 2h ago 1 build +1 sub",
+		"└─ droid 4h ago 1 docs",
 		"codex 5h ago 1 solo",
 		"claude 6h ago 1 ship +1 sub")
 
@@ -59,9 +60,9 @@ func TestRightExpandsOneLevelAtATime(t *testing.T) {
 	m = send(m, press("l"))
 	assertRows(t, m,
 		"droid 1h ago 1 plan −3 sub",
-		"> droid 2h ago 1 ├─ build −1 sub",
-		"droid 3h ago 1 │ └─ probe",
-		"droid 4h ago 1 └─ docs",
+		"> ├─ droid 2h ago 1 build −1 sub",
+		"│ └─ droid 3h ago 1 probe",
+		"└─ droid 4h ago 1 docs",
 		"codex 5h ago 1 solo",
 		"claude 6h ago 1 ship +1 sub")
 }
@@ -75,8 +76,8 @@ func TestLeftCollapses(t *testing.T) {
 	m = send(m, press("left"))
 	assertRows(t, m,
 		"droid 1h ago 1 plan −3 sub",
-		"> droid 2h ago 1 ├─ build +1 sub",
-		"droid 4h ago 1 └─ docs",
+		"> ├─ droid 2h ago 1 build +1 sub",
+		"└─ droid 4h ago 1 docs",
 		"codex 5h ago 1 solo",
 		"claude 6h ago 1 ship +1 sub")
 
@@ -103,8 +104,8 @@ func TestCollapsingFromGrandchildClosesItsParentOnly(t *testing.T) {
 	m = send(m, press("left"))
 	assertRows(t, m,
 		"droid 1h ago 1 plan −3 sub",
-		"> droid 2h ago 1 ├─ build +1 sub",
-		"droid 4h ago 1 └─ docs",
+		"> ├─ droid 2h ago 1 build +1 sub",
+		"└─ droid 4h ago 1 docs",
 		"codex 5h ago 1 solo",
 		"claude 6h ago 1 ship +1 sub")
 }
@@ -116,11 +117,11 @@ func TestFShowsOnlySessionsWithSubagentsExpanded(t *testing.T) {
 	}
 	assertRows(t, m,
 		"> droid 1h ago 1 plan −3 sub",
-		"droid 2h ago 1 ├─ build −1 sub",
-		"droid 3h ago 1 │ └─ probe",
-		"droid 4h ago 1 └─ docs",
+		"├─ droid 2h ago 1 build −1 sub",
+		"│ └─ droid 3h ago 1 probe",
+		"└─ droid 4h ago 1 docs",
 		"claude 6h ago 1 ship −1 sub",
-		"claude 7h ago 1 └─ lint",
+		"└─ claude 7h ago 1 lint",
 		"droid 8h ago 1 stray (orphan)")
 
 	// ← and → still work inside f
@@ -128,7 +129,7 @@ func TestFShowsOnlySessionsWithSubagentsExpanded(t *testing.T) {
 	assertRows(t, m,
 		"> droid 1h ago 1 plan +3 sub",
 		"claude 6h ago 1 ship −1 sub",
-		"claude 7h ago 1 └─ lint",
+		"└─ claude 7h ago 1 lint",
 		"droid 8h ago 1 stray (orphan)")
 }
 
@@ -176,7 +177,7 @@ func TestExpansionAndFSurviveScopeAndAgentSwitches(t *testing.T) {
 	}
 	assertRows(t, m,
 		"> claude 6h ago 1 ship −1 sub ~/repo",
-		"claude 7h ago 1 └─ lint ~/repo")
+		"└─ claude 7h ago 1 lint")
 }
 
 func TestTextFilterSurvivesF(t *testing.T) {
@@ -197,7 +198,7 @@ func TestExpandingReappliesTextFilter(t *testing.T) {
 	m = send(m, press("right"))
 	assertRows(t, m,
 		"> claude 6h ago 1 ship −1 sub",
-		"claude 7h ago 1 └─ lint")
+		"└─ claude 7h ago 1 lint")
 }
 
 func TestExpandedStartShowsEveryTreeAndOrphans(t *testing.T) {
@@ -205,12 +206,12 @@ func TestExpandedStartShowsEveryTreeAndOrphans(t *testing.T) {
 	cfg.Expanded = true
 	assertRows(t, start(cfg),
 		"> droid 1h ago 1 plan −3 sub",
-		"droid 2h ago 1 ├─ build −1 sub",
-		"droid 3h ago 1 │ └─ probe",
-		"droid 4h ago 1 └─ docs",
+		"├─ droid 2h ago 1 build −1 sub",
+		"│ └─ droid 3h ago 1 probe",
+		"└─ droid 4h ago 1 docs",
 		"codex 5h ago 1 solo",
 		"claude 6h ago 1 ship −1 sub",
-		"claude 7h ago 1 └─ lint",
+		"└─ claude 7h ago 1 lint",
 		"droid 8h ago 1 stray (orphan)")
 }
 
@@ -309,10 +310,68 @@ func TestReexpandingOpensOneLevelAgain(t *testing.T) {
 	}
 	assertRows(t, m,
 		"> droid 1h ago 1 plan −3 sub",
-		"droid 2h ago 1 ├─ build +1 sub",
-		"droid 4h ago 1 └─ docs",
+		"├─ droid 2h ago 1 build +1 sub",
+		"└─ droid 4h ago 1 docs",
 		"codex 5h ago 1 solo",
 		"claude 6h ago 1 ship +1 sub")
+}
+
+// line returns the unstyled view line containing s.
+func line(t *testing.T, m tea.Model, s string) string {
+	t.Helper()
+	for _, l := range strings.Split(ansi.Strip(m.View()), "\n") {
+		if strings.Contains(l, s) {
+			return l
+		}
+	}
+	t.Fatalf("no line with %q in:\n%s", s, m.View())
+	return ""
+}
+
+func TestSubagentRowsAreIndentedAsAWhole(t *testing.T) {
+	cfg := family()
+	cfg.Expanded = true
+	cfg.Sessions[0].Children[1].Problem = "unreadable" // docs
+	m := start(cfg)
+
+	plan, build, probe := line(t, m, "plan"), line(t, m, "build"), line(t, m, "probe")
+	for l, prefix := range map[string]string{
+		plan:                "> droid ",
+		build:               "  ├─ droid ",
+		probe:               "  │  └─ droid ",
+		line(t, m, "docs"):  "  └─ droid ",
+		line(t, m, "lint"):  "  └─ claude ",
+		line(t, m, "stray"): "  droid ",
+		line(t, m, "solo"):  "  codex ",
+		line(t, m, "ship"):  "  claude ",
+	} {
+		if !strings.HasPrefix(l, prefix) {
+			t.Errorf("line %q does not start with %q", l, prefix)
+		}
+	}
+	col := func(l, s string) int { return ansi.StringWidth(l[:strings.Index(l, s)]) }
+	if got := col(build, "2h ago") - col(plan, "1h ago"); got != 3 {
+		t.Errorf("child columns shifted by %d, want 3", got)
+	}
+	if got := col(probe, "3h ago") - col(plan, "1h ago"); got != 6 {
+		t.Errorf("grandchild columns shifted by %d, want 6", got)
+	}
+}
+
+func TestSubagentCwdShownOnlyWhenItDiffersFromParent(t *testing.T) {
+	cfg := family()
+	cfg.Expanded = true
+	cfg.Scope = index.All
+	cfg.Sessions[0].Children[0].Children[0].Cwd = home + "/repo/web" // probe
+	assertRows(t, start(cfg),
+		"> droid 1h ago 1 plan −3 sub ~/repo",
+		"├─ droid 2h ago 1 build −1 sub",
+		"│ └─ droid 3h ago 1 probe ~/repo/web",
+		"└─ droid 4h ago 1 docs",
+		"codex 5h ago 1 solo ~/repo",
+		"claude 6h ago 1 ship −1 sub ~/repo",
+		"└─ claude 7h ago 1 lint",
+		"droid 8h ago 1 stray (orphan) ~/repo")
 }
 
 func TestRightOnLeafDoesNothing(t *testing.T) {

@@ -22,7 +22,8 @@ Inside the picker, a row with sub-agents can be expanded in place: `→` opens i
 6. As a developer, I want `→` on a row without sub-agents to do nothing, so that pressing it by mistake is harmless.
 7. As a developer, I want collapsing a parent to hide all its descendants, so that nothing is left dangling.
 8. As a developer, I want a collapsed row to keep showing "+3 sub" and an expanded row to show "−3 sub", so that I can tell at a glance which rows are open.
-9. As a developer, I want expanded sub-agents drawn with the existing tree connectors (├─ / └─), so that they look the same as with `--subagents`.
+9. As a developer, I want expanded sub-agents drawn with the existing tree connectors (├─ / └─) at the start of the row, with the whole row indented three columns per level, so that a sub-agent reads as nested under its parent rather than as a sibling.
+9a. As a developer, I want a sub-agent's working directory left blank when it matches its parent's, so that the cwd column only calls out sub-agents that ran somewhere else.
 10. As a developer, I want sub-agents within a tree sorted by last-updated time, newest first, as they are today, so that ordering is consistent.
 
 ### Showing only sessions with sub-agents
@@ -71,7 +72,7 @@ Inside the picker, a row with sub-agents can be expanded in place: `→` opens i
 
 - The picker owns the collapse state: a set of expanded sessions, keyed by session identity, plus an "expand all" mode used by `f` and by `--subagents`.
 - Picker configuration gains a flag for starting with everything expanded (set by `--subagents`).
-- Rows are produced by walking the scoped, agent-filtered forest and descending only into expanded sessions. Tree connectors come from the existing flattening logic, applied to the visible part of the tree.
+- Rows are produced by walking the scoped, agent-filtered forest and descending only into expanded sessions. Tree connectors come from the existing flattening logic, applied to the visible part of the tree. In the picker the connector leads the row (before the agent name), so columns line up among siblings rather than across depths; the non-interactive `--subagents` table keeps connectors in the title column.
 - The sub-agent count on a row is the number of all descendants, computed by the picker from the tree. Collapsed rows show "+N sub", expanded rows "−N sub". The count is unaffected by text filtering.
 - Orphans (top-level sub-agent sessions marked orphan by the Index) are listed only while `f` is on or the picker was started with `--subagents`.
 - `f` mode:

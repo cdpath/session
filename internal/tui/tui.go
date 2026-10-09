@@ -107,13 +107,16 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, li list.Item) {
 	if selected {
 		cursor = cursorStyle.Render("> ")
 	}
+	// The tree connector leads the whole row so a sub-agent reads as nested
+	// under its parent rather than as a sibling with an odd title.
+	tree := it.row.Prefix
 	tag := lipgloss.NewStyle().Foreground(agentColors[s.Agent]).Width(7).Render(s.Agent)
 	meta := fmt.Sprintf("%9s %4d  ", display.Ago(s.Updated, d.now), s.Turns)
 
-	width := m.Width() - 2
-	title := it.row.Prefix + display.Title(s) + display.SubMarker(it.subs, it.open)
+	width := m.Width() - 2 - lipgloss.Width(tree)
+	title := display.Title(s) + display.SubMarker(it.subs, it.open)
 	var cwd string
-	if c := d.cwd(s); c != "" {
+	if c := d.cwd(s); c != "" && (it.row.Parent == nil || c != d.cwd(it.row.Parent)) {
 		cwd = "  " + c
 	}
 	room := width - lipgloss.Width(tag) - lipgloss.Width(meta) - lipgloss.Width(cwd)
@@ -125,11 +128,11 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, li list.Item) {
 
 	switch {
 	case s.Problem != "":
-		fmt.Fprint(w, cursor+dimStyle.Render(s.Agent+strings.Repeat(" ", max(7-len(s.Agent), 0))+meta+title+pad+cwd))
+		fmt.Fprint(w, cursor+tree+dimStyle.Render(s.Agent+strings.Repeat(" ", max(7-len(s.Agent), 0))+meta+title+pad+cwd))
 	case selected:
-		fmt.Fprint(w, cursor+tag+meta+selectedText.Render(title)+pad+dimStyle.Render(cwd))
+		fmt.Fprint(w, cursor+tree+tag+meta+selectedText.Render(title)+pad+dimStyle.Render(cwd))
 	default:
-		fmt.Fprint(w, cursor+tag+meta+title+pad+dimStyle.Render(cwd))
+		fmt.Fprint(w, cursor+tree+tag+meta+title+pad+dimStyle.Render(cwd))
 	}
 }
 
