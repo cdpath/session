@@ -54,6 +54,18 @@ func press(s string) tea.KeyMsg {
 		return tea.KeyMsg{Type: tea.KeyEnter}
 	case "esc":
 		return tea.KeyMsg{Type: tea.KeyEsc}
+	case "right":
+		return tea.KeyMsg{Type: tea.KeyRight}
+	case "left":
+		return tea.KeyMsg{Type: tea.KeyLeft}
+	case "pgdown":
+		return tea.KeyMsg{Type: tea.KeyPgDown}
+	case "pgup":
+		return tea.KeyMsg{Type: tea.KeyPgUp}
+	case "ctrl+f":
+		return tea.KeyMsg{Type: tea.KeyCtrlF}
+	case "ctrl+b":
+		return tea.KeyMsg{Type: tea.KeyCtrlB}
 	}
 	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)}
 }

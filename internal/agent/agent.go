@@ -42,6 +42,15 @@ func (s *Session) DisplayTitle() string {
 	return s.FirstMessage
 }
 
+// Descendants counts every session in the tree below s.
+func (s *Session) Descendants() int {
+	n := 0
+	for _, c := range s.Children {
+		n += 1 + c.Descendants()
+	}
+	return n
+}
+
 // Command is a fully resolved resume invocation.
 type Command struct {
 	Bin  string   `json:"bin"`

@@ -57,37 +57,51 @@ func Title(s *agent.Session) string {
 	if s.Orphan {
 		b.WriteString(" (orphan)")
 	}
-	if s.HiddenSubagents > 0 {
-		fmt.Fprintf(&b, "  +%d sub", s.HiddenSubagents)
-	}
+	b.WriteString(SubMarker(s.HiddenSubagents, false))
 	return b.String()
+}
+
+// SubMarker labels a row with n sub-agents: "+n sub" while they are hidden,
+// "−n sub" while they are listed below it, nothing when n is 0.
+func SubMarker(n int, listed bool) string {
+	switch {
+	case n == 0:
+		return ""
+	case listed:
+		return fmt.Sprintf("  −%d sub", n)
+	}
+	return fmt.Sprintf("  +%d sub", n)
 }
 
 // Row is one flattened tree entry with its tree-drawing prefix.
 type Row struct {
 	Session *agent.Session
+	Parent  *agent.Session // nil for top-level rows
 	Prefix  string
 }
 
-// Flatten walks the forest depth-first, producing "├─ " / "└─ " prefixes.
-func Flatten(ss []*agent.Session) []Row {
+// Flatten walks the forest depth-first, producing "├─ " / "└─ " prefixes. It
+// descends into a session's children only when open reports true for it; a
+// nil open descends everywhere.
+func Flatten(ss []*agent.Session, open func(*agent.Session) bool) []Row {
 	var rows []Row
-	var walk func(ss []*agent.Session, indent string, child bool)
-	walk = func(ss []*agent.Session, indent string, child bool) {
+	var walk func(ss []*agent.Session, parent *agent.Session, indent string)
+	walk = func(ss []*agent.Session, parent *agent.Session, indent string) {
 		for i, s := range ss {
-			last := i == len(ss)-1
 			prefix, next := "", ""
-			if child {
-				if last {
+			if parent != nil {
+				if i == len(ss)-1 {
 					prefix, next = indent+"└─ ", indent+"   "
 				} else {
 					prefix, next = indent+"├─ ", indent+"│  "
 				}
 			}
-			rows = append(rows, Row{Session: s, Prefix: prefix})
-			walk(s.Children, next, true)
+			rows = append(rows, Row{Session: s, Parent: parent, Prefix: prefix})
+			if open == nil || open(s) {
+				walk(s.Children, s, next)
+			}
 		}
 	}
-	walk(ss, "", false)
+	walk(ss, nil, "")
 	return rows
 }

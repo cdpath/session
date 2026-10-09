@@ -134,7 +134,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		Env:          env,
 		Cwd:          cwd,
 		Scope:        listScope,
-		Subagents:    f.subagents,
+		Subagents:    f.subagents || interactive, // the picker collapses trees itself
 		Headless:     f.headless,
 		Agents:       agents,
 		LookPath:     exec.LookPath,
@@ -186,6 +186,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		Scope:    scope,
 		Home:     env.Home,
 		Agents:   presentAgents(res.Sessions, names),
+		Expanded: f.subagents,
 	})
 	if err != nil {
 		fmt.Fprintln(stderr, "session:", err)
@@ -240,7 +241,7 @@ func printTable(w io.Writer, sessions []*agent.Session, global bool, home string
 	header = append(header, "ID")
 	rows := [][]string{header}
 	now := time.Now()
-	for _, r := range display.Flatten(sessions) {
+	for _, r := range display.Flatten(sessions, nil) {
 		s := r.Session
 		title := r.Prefix + ansi.Truncate(display.Title(s), 70, "…")
 		row := []string{s.Agent, display.Ago(s.Updated, now), fmt.Sprint(s.Turns), title}

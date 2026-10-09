@@ -13,7 +13,7 @@ session                 # sessions started in the current directory
 session -r              # ...and its subdirectories
 session -g              # sessions from every directory
 session -a claude,codex # only some agents
-session --subagents     # show sub-agent sessions as a tree under their parent
+session --subagents     # sub-agent sessions as a tree under their parent (picker: start expanded)
 session --headless      # include SDK / integration sessions
 session --json          # machine-readable output
 session -- --model x    # append arguments to the resume command
@@ -26,7 +26,21 @@ Until the repo has release tags, `go install …@latest` can lag behind because 
 GOPROXY=direct go install github.com/cdpath/session/cmd/session@main
 ```
 
-In the picker: `↑/↓` or `j/k` to move, `/` to filter, `Tab` to switch agent, `s` to switch scope (current directory → with subdirectories → all directories), `Enter` to resume, `q` to quit. `-r` and `-g` choose the scope the picker starts in.
+In the picker:
+
+| key | action |
+| --- | --- |
+| `↑/↓`, `j/k` | move |
+| `PgDn`/`d`/`ctrl+f`, `PgUp`/`u`/`b`/`ctrl+b` | next / previous page |
+| `→`/`l`, `←`/`h` | expand / collapse a session's sub-agents (rows marked `+N sub`) |
+| `f` | only sessions with sub-agents, all expanded, plus orphaned sub-agents |
+| `/` | filter |
+| `Tab` | switch agent |
+| `s` | switch scope: current directory → with subdirectories → all directories |
+| `Enter` | resume |
+| `q` | quit |
+
+`-r` and `-g` choose the scope the picker starts in, and `--subagents` starts it with every tree expanded and orphaned sub-agents shown.
 
 On Enter, `session` changes into the session's original directory and replaces itself with the agent:
 

@@ -112,7 +112,7 @@ func List(opts Options) (Result, error) {
 	})
 	if !opts.Subagents {
 		for _, s := range visible {
-			s.HiddenSubagents = countDescendants(s)
+			s.HiddenSubagents = s.Descendants()
 			s.Children = nil
 		}
 	}
@@ -127,12 +127,6 @@ func walk(ss []*agent.Session, fn func(*agent.Session)) {
 		fn(s)
 		walk(s.Children, fn)
 	}
-}
-
-func countDescendants(s *agent.Session) int {
-	n := 0
-	walk(s.Children, func(*agent.Session) { n++ })
-	return n
 }
 
 func sortTree(ss []*agent.Session) {
