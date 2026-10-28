@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/cdpath/session/internal/agent"
+	"github.com/cdpath/session/internal/display"
 	"github.com/cdpath/session/internal/index"
 )
 
@@ -379,4 +380,110 @@ func TestRightOnLeafDoesNothing(t *testing.T) {
 	before := rows(m)
 	m = send(m, press("right"))
 	assertRows(t, m, before...)
+}
+
+func TestSlugShownInAllScope(t *testing.T) {
+	s := at("droid", "d1", "alpha", "/repo", 1)
+	s.RepoSlug = "org/repo"
+	cfg := Config{
+		Sessions: []*agent.Session{s},
+		Dir:      home + "/repo",
+		Scope:    index.All,
+		Home:     home,
+		Agents:   []string{"droid"},
+	}
+	m := start(cfg)
+	assertRows(t, m, "> droid 1h ago 1 alpha org/repo ~/repo")
+}
+
+func TestSlugHiddenInHereScope(t *testing.T) {
+	s := at("droid", "d1", "alpha", "/repo", 1)
+	s.RepoSlug = "org/repo"
+	cfg := Config{
+		Sessions: []*agent.Session{s},
+		Dir:      home + "/repo",
+		Scope:    index.Here,
+		Home:     home,
+		Agents:   []string{"droid"},
+	}
+	m := start(cfg)
+	assertRows(t, m, "> droid 1h ago 1 alpha")
+}
+
+func TestSlugHiddenOnSubagentWhenMatchingParent(t *testing.T) {
+	parent := at("droid", "plan", "plan", "/repo", 1)
+	parent.RepoSlug = "org/repo"
+	child := at("droid", "build", "build", "/repo", 2)
+	child.RepoSlug = "org/repo"
+	different := at("droid", "docs", "docs", "/repo", 3)
+	different.RepoSlug = "other/lib"
+	parent.Children = []*agent.Session{child, different}
+
+	cfg := Config{
+		Sessions: []*agent.Session{parent},
+		Dir:      home + "/repo",
+		Scope:    index.All,
+		Home:     home,
+		Agents:   []string{"droid"},
+		Expanded: true,
+	}
+	m := start(cfg)
+	assertRows(t, m,
+		"> droid 1h ago 1 plan −2 sub org/repo ~/repo",
+		"├─ droid 2h ago 1 build",
+		"└─ droid 3h ago 1 docs other/lib")
+}
+
+func TestDirNameFallbackShownInAllScope(t *testing.T) {
+	s := at("droid", "d1", "alpha", "/repo", 1)
+	s.RepoDirName = "myproject"
+	cfg := Config{
+		Sessions: []*agent.Session{s},
+		Dir:      home + "/repo",
+		Scope:    index.All,
+		Home:     home,
+		Agents:   []string{"droid"},
+	}
+	m := start(cfg)
+	assertRows(t, m, "> droid 1h ago 1 alpha myproject ~/repo")
+}
+
+func TestSlugDroppedBeforeCwdUnderWidthPressure(t *testing.T) {
+	s := at("droid", "d1", "alpha", "/repo", 1)
+	s.RepoSlug = "org/repo"
+	cfg := Config{
+		Sessions: []*agent.Session{s},
+		Dir:      home + "/repo",
+		Scope:    index.All,
+		Home:     home,
+		Agents:   []string{"droid"},
+	}
+	// Wide: both slug and cwd visible
+	wide := start(cfg)
+	wr := rows(wide)
+	if len(wr) == 0 {
+		t.Fatal("no rows at wide width")
+	}
+	if !strings.Contains(wr[0], "org/repo") || !strings.Contains(wr[0], "~/repo") {
+		t.Errorf("wide: expected both slug and cwd: %q", wr[0])
+	}
+	// Narrow: slug dropped, cwd survives
+	narrow := send(newModel(cfg), tea.WindowSizeMsg{Width: 44, Height: 30})
+	nr := rows(narrow)
+	if len(nr) == 0 {
+		t.Fatal("no rows at narrow width")
+	}
+	if strings.Contains(nr[0], "org/repo") {
+		t.Errorf("narrow: slug should be dropped: %q", nr[0])
+	}
+}
+
+func TestSlugInFilterValue(t *testing.T) {
+	s := at("droid", "d1", "alpha", "/repo", 1)
+	s.RepoSlug = "org/repo"
+	it := item{row: display.Row{Session: s}}
+	fv := it.FilterValue()
+	if !strings.Contains(fv, "org/repo") {
+		t.Errorf("FilterValue = %q, should contain slug", fv)
+	}
 }

@@ -10,7 +10,7 @@ import (
 
 // schemaVersion must be bumped whenever any provider's parsing changes, so
 // caches written by older builds are discarded.
-const schemaVersion = 1
+const schemaVersion = 2
 
 type cacheFile struct {
 	SchemaVersion int                   `json:"schemaVersion"`

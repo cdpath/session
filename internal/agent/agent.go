@@ -24,6 +24,7 @@ type Session struct {
 	Subagent     bool   `json:"subagent,omitempty"`
 	Tag          string `json:"tag,omitempty"`
 	Headless     bool   `json:"headless,omitempty"`
+	RepoSlug     string `json:"repo,omitempty"`
 
 	// derived
 	Updated         time.Time  `json:"updated"`
@@ -32,6 +33,7 @@ type Session struct {
 	Orphan          bool       `json:"orphan,omitempty"`
 	HiddenSubagents int        `json:"hiddenSubagents,omitempty"`
 	Children        []*Session `json:"children,omitempty"`
+	RepoDirName     string     `json:"-"`
 }
 
 // DisplayTitle is the agent's own title, falling back to the first user message.

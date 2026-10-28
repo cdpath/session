@@ -35,6 +35,7 @@ Flags:
       --subagents      show sub-agent sessions as a tree under their parent
       --headless       include sessions started by SDKs and integrations
       --json           print JSON
+      --refresh        recompute cached repo slugs, e.g. after changing a remote
       --no-cache       do not read or write the metadata cache
       --rebuild-cache  re-parse every session file and rewrite the cache
       --debug          report files that could not be parsed
@@ -49,8 +50,8 @@ func main() {
 
 type flags struct {
 	global, recursive, subagents, headless, json bool
-	noCache, rebuildCache, debug, version        bool
-	agents                                       string
+	refresh, noCache, rebuildCache, debug, version bool
+	agents                                         string
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
@@ -79,6 +80,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.BoolVar(&f.subagents, "subagents", false, "")
 	fs.BoolVar(&f.headless, "headless", false, "")
 	fs.BoolVar(&f.json, "json", false, "")
+	fs.BoolVar(&f.refresh, "refresh", false, "")
 	fs.BoolVar(&f.noCache, "no-cache", false, "")
 	fs.BoolVar(&f.rebuildCache, "rebuild-cache", false, "")
 	fs.BoolVar(&f.debug, "debug", false, "")
@@ -141,6 +143,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		CachePath:    index.DefaultCachePath(),
 		NoCache:      f.noCache,
 		RebuildCache: f.rebuildCache,
+		Refresh:      f.refresh,
 	})
 	if err != nil {
 		fmt.Fprintln(stderr, "session:", err)
@@ -236,7 +239,7 @@ func isTerminal(f *os.File) bool { return term.IsTerminal(int(f.Fd())) }
 func printTable(w io.Writer, sessions []*agent.Session, global bool, home string) {
 	header := []string{"AGENT", "UPDATED", "TURNS", "TITLE"}
 	if global {
-		header = append(header, "CWD")
+		header = append(header, "REPO", "CWD")
 	}
 	header = append(header, "ID")
 	rows := [][]string{header}
@@ -246,7 +249,7 @@ func printTable(w io.Writer, sessions []*agent.Session, global bool, home string
 		title := r.Prefix + ansi.Truncate(display.Title(s), 70, "…")
 		row := []string{s.Agent, display.Ago(s.Updated, now), fmt.Sprint(s.Turns), title}
 		if global {
-			row = append(row, display.ShortPath(s.Cwd, home))
+			row = append(row, display.RepoLabel(s), display.ShortPath(s.Cwd, home))
 		}
 		row = append(row, s.ID)
 		if s.Problem != "" {

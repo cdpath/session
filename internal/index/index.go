@@ -14,6 +14,7 @@ import (
 	"github.com/cdpath/session/internal/provider/codex"
 	"github.com/cdpath/session/internal/provider/droid"
 	"github.com/cdpath/session/internal/provider/pi"
+	"github.com/cdpath/session/internal/reposlug"
 )
 
 // Providers returns every supported agent in display order.
@@ -34,6 +35,7 @@ type Options struct {
 	CachePath    string // empty disables the cache
 	NoCache      bool   // neither read nor write the cache
 	RebuildCache bool   // ignore existing entries, then write a fresh cache
+	Refresh      bool   // recompute repo slugs for cached entries
 }
 
 type Skip struct {
@@ -67,7 +69,7 @@ func List(opts Options) (Result, error) {
 	// Every file is read whatever the scope or agent filter: sub-agents may run
 	// elsewhere than their parent, only the in-file cwd says where a session
 	// belongs, and the cache is rewritten from what this run saw.
-	all, skipped, err := scan(opts.Env, providers, cache)
+	all, skipped, err := scan(opts.Env, providers, cache, opts.Refresh)
 	if err != nil {
 		return Result{}, err
 	}
@@ -141,7 +143,7 @@ type cacheState struct {
 	entries map[string]cacheEntry
 }
 
-func scan(env agent.Env, providers []agent.Provider, cache cacheState) ([]parsed, []Skip, error) {
+func scan(env agent.Env, providers []agent.Provider, cache cacheState, refresh bool) ([]parsed, []Skip, error) {
 	type job struct {
 		provider agent.Provider
 		path     string
@@ -201,6 +203,8 @@ func scan(env agent.Env, providers []agent.Provider, cache cacheState) ([]parsed
 	close(ch)
 	wg.Wait()
 
+	resolveRepoSlugs(out, seen, refresh)
+
 	if cache.path != "" {
 		if err := saveCache(cache.path, seen); err != nil {
 			skipped = append(skipped, Skip{Path: cache.path, Err: err})
@@ -255,6 +259,65 @@ func (p *problems) of(s *agent.Session) string {
 		return "directory no longer exists: " + dir
 	}
 	return ""
+}
+
+// resolveRepoSlugs computes repo slugs for sessions, memoized by Cwd,
+// and updates both the working sessions and the cache entries.
+func resolveRepoSlugs(out []parsed, seen map[string]cacheEntry, refresh bool) {
+	type cwdResult struct {
+		slug    string
+		dirName string
+	}
+	memo := map[string]*cwdResult{}
+
+	if !refresh {
+		for _, p := range out {
+			s := p.session
+			if s == nil || s.Cwd == "" || s.RepoSlug == "" {
+				continue
+			}
+			if _, ok := memo[s.Cwd]; !ok {
+				memo[s.Cwd] = &cwdResult{slug: s.RepoSlug}
+			}
+		}
+	}
+
+	for _, p := range out {
+		s := p.session
+		if s == nil || s.Cwd == "" {
+			continue
+		}
+		if _, ok := memo[s.Cwd]; ok {
+			continue
+		}
+		r := reposlug.ForDir(s.Cwd)
+		res := &cwdResult{slug: r.Slug}
+		if res.slug == "" {
+			res.dirName = r.DirName()
+		}
+		memo[s.Cwd] = res
+	}
+
+	for _, p := range out {
+		s := p.session
+		if s == nil || s.Cwd == "" {
+			continue
+		}
+		if r, ok := memo[s.Cwd]; ok {
+			s.RepoSlug = r.slug
+			s.RepoDirName = r.dirName
+		}
+	}
+
+	for path, entry := range seen {
+		if entry.Session == nil || entry.Session.Cwd == "" {
+			continue
+		}
+		if r, ok := memo[entry.Session.Cwd]; ok && entry.Session.RepoSlug != r.slug {
+			entry.Session.RepoSlug = r.slug
+			seen[path] = entry
+		}
+	}
 }
 
 func sortByUpdated(ss []*agent.Session) {

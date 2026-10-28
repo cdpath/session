@@ -114,6 +114,44 @@ func TestCacheFromOtherSchemaVersionIsDiscarded(t *testing.T) {
 	assertList(t, f.list(opts), `droid d1 "Bravo" turns=1`+"\n")
 }
 
+func TestRepoSlugCachedAcrossRuns(t *testing.T) {
+	f := newFixture(t)
+	proj := f.project("cached")
+	f.initRepo(proj, "https://github.com/team/cached.git")
+	f.droidSession(proj, "d1", 1, nil, droidUser("hi"))
+	opts := f.options(proj)
+	opts.CachePath = filepath.Join(f.home, "cache", "index.json")
+
+	assertList(t, f.list(opts), `droid d1 "hi" turns=1 repo=team/cached`+"\n")
+
+	os.RemoveAll(filepath.Join(proj, ".git"))
+	assertList(t, f.list(opts), `droid d1 "hi" turns=1 repo=team/cached`+"\n")
+}
+
+func TestRefreshRecomputesSlugs(t *testing.T) {
+	f := newFixture(t)
+	proj := f.project("refresh")
+	f.initRepo(proj, "https://github.com/old/name.git")
+	f.droidSession(proj, "d1", 1, nil, droidUser("hi"))
+	opts := f.options(proj)
+	opts.CachePath = filepath.Join(f.home, "cache", "index.json")
+	assertList(t, f.list(opts), `droid d1 "hi" turns=1 repo=old/name`+"\n")
+
+	config := "[remote \"origin\"]\n\turl = https://github.com/new/name.git\n"
+	os.WriteFile(filepath.Join(proj, ".git", "config"), []byte(config), 0o644)
+
+	// Without refresh: cached slug persists
+	assertList(t, f.list(opts), `droid d1 "hi" turns=1 repo=old/name`+"\n")
+
+	// With refresh: slug is recomputed
+	opts.Refresh = true
+	assertList(t, f.list(opts), `droid d1 "hi" turns=1 repo=new/name`+"\n")
+
+	// Subsequent run without refresh uses updated cache
+	opts.Refresh = false
+	assertList(t, f.list(opts), `droid d1 "hi" turns=1 repo=new/name`+"\n")
+}
+
 func TestCodexTitlesAreFreshEvenWhenRolloutIsCached(t *testing.T) {
 	f := newFixture(t)
 	proj := f.project("proj")

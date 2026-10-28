@@ -114,6 +114,31 @@ func (f *fixture) list(opts index.Options) []*agent.Session {
 
 // render prints the forest one session per line so expectations read like the
 // list a user would see.
+// initRepo creates a .git directory with the given remote URL.
+func (f *fixture) initRepo(dir, remoteURL string) {
+	f.t.Helper()
+	gitDir := filepath.Join(dir, ".git")
+	if err := os.MkdirAll(gitDir, 0o755); err != nil {
+		f.t.Fatal(err)
+	}
+	config := fmt.Sprintf("[remote \"origin\"]\n\turl = %s\n", remoteURL)
+	if err := os.WriteFile(filepath.Join(gitDir, "config"), []byte(config), 0o644); err != nil {
+		f.t.Fatal(err)
+	}
+}
+
+// initRepoNoRemote creates a .git directory with no remote.
+func (f *fixture) initRepoNoRemote(dir string) {
+	f.t.Helper()
+	gitDir := filepath.Join(dir, ".git")
+	if err := os.MkdirAll(gitDir, 0o755); err != nil {
+		f.t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(gitDir, "config"), []byte("[core]\n\tbare = false\n"), 0o644); err != nil {
+		f.t.Fatal(err)
+	}
+}
+
 func render(sessions []*agent.Session) string {
 	var b strings.Builder
 	var walk func(ss []*agent.Session, depth int)
@@ -123,6 +148,12 @@ func render(sessions []*agent.Session) string {
 			fmt.Fprintf(&b, "%s %s %q turns=%d", s.Agent, s.ID, s.DisplayTitle(), s.Turns)
 			if s.Tag != "" {
 				fmt.Fprintf(&b, " tag=%s", s.Tag)
+			}
+			if s.RepoSlug != "" {
+				fmt.Fprintf(&b, " repo=%s", s.RepoSlug)
+			}
+			if s.RepoDirName != "" {
+				fmt.Fprintf(&b, " repodir=%s", s.RepoDirName)
 			}
 			if s.HiddenSubagents > 0 {
 				fmt.Fprintf(&b, " +%d sub", s.HiddenSubagents)

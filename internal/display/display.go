@@ -73,6 +73,15 @@ func SubMarker(n int, listed bool) string {
 	return fmt.Sprintf("  +%d sub", n)
 }
 
+// RepoLabel returns the visible repo identity: the slug if set, otherwise
+// the directory-name fallback, or empty if the session is not in a repo.
+func RepoLabel(s *agent.Session) string {
+	if s.RepoSlug != "" {
+		return s.RepoSlug
+	}
+	return s.RepoDirName
+}
+
 // Row is one flattened tree entry with its tree-drawing prefix.
 type Row struct {
 	Session *agent.Session

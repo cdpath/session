@@ -29,6 +29,7 @@ var (
 	cursorStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true)
 	selectedText = lipgloss.NewStyle().Bold(true)
 	dimStyle     = lipgloss.NewStyle().Faint(true)
+	slugStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("75"))
 	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
 )
 
@@ -71,7 +72,11 @@ func (o *openSet) set(s *agent.Session, open bool) {
 
 func (i item) FilterValue() string {
 	s := i.row.Session
-	return s.Agent + " " + display.Title(s) + " " + s.Cwd
+	v := s.Agent + " " + display.Title(s)
+	if label := display.RepoLabel(s); label != "" {
+		v += " " + label
+	}
+	return v + " " + s.Cwd
 }
 
 type delegate struct {
@@ -79,6 +84,19 @@ type delegate struct {
 	scoper *index.Scoper
 	home   string
 	now    time.Time
+}
+
+func (d delegate) repoLabel(s *agent.Session) (label string, isSlug bool) {
+	if d.scope == index.Here {
+		return "", false
+	}
+	if s.RepoSlug != "" {
+		return s.RepoSlug, true
+	}
+	if s.RepoDirName != "" {
+		return s.RepoDirName, false
+	}
+	return "", false
 }
 
 func (d delegate) cwd(s *agent.Session) string {
@@ -115,24 +133,50 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, li list.Item) {
 
 	width := m.Width() - 2 - lipgloss.Width(tree)
 	title := display.Title(s) + display.SubMarker(it.subs, it.open)
+
+	var slug string
+	var slugIsReal bool
+	if label, real := d.repoLabel(s); label != "" {
+		if it.row.Parent == nil {
+			slug, slugIsReal = "  "+label, real
+		} else if pLabel, _ := d.repoLabel(it.row.Parent); label != pLabel {
+			slug, slugIsReal = "  "+label, real
+		}
+	}
+
 	var cwd string
 	if c := d.cwd(s); c != "" && (it.row.Parent == nil || c != d.cwd(it.row.Parent)) {
 		cwd = "  " + c
 	}
-	room := width - lipgloss.Width(tag) - lipgloss.Width(meta) - lipgloss.Width(cwd)
+
+	room := width - lipgloss.Width(tag) - lipgloss.Width(meta) - lipgloss.Width(slug) - lipgloss.Width(cwd)
+	if room < 10 && slug != "" {
+		slug = ""
+		room = width - lipgloss.Width(tag) - lipgloss.Width(meta) - lipgloss.Width(cwd)
+	}
 	if room < 10 {
-		room, cwd = width-lipgloss.Width(tag)-lipgloss.Width(meta), ""
+		cwd = ""
+		room = width - lipgloss.Width(tag) - lipgloss.Width(meta)
 	}
 	title = ansi.Truncate(title, max(room, 1), "…")
 	pad := strings.Repeat(" ", max(room-lipgloss.Width(title), 0))
 
+	var styledSlug string
+	if slug != "" {
+		if slugIsReal {
+			styledSlug = slugStyle.Render(slug)
+		} else {
+			styledSlug = dimStyle.Render(slug)
+		}
+	}
+
 	switch {
 	case s.Problem != "":
-		fmt.Fprint(w, cursor+tree+dimStyle.Render(s.Agent+strings.Repeat(" ", max(7-len(s.Agent), 0))+meta+title+pad+cwd))
+		fmt.Fprint(w, cursor+tree+dimStyle.Render(s.Agent+strings.Repeat(" ", max(7-len(s.Agent), 0))+meta+title+pad+slug+cwd))
 	case selected:
-		fmt.Fprint(w, cursor+tree+tag+meta+selectedText.Render(title)+pad+dimStyle.Render(cwd))
+		fmt.Fprint(w, cursor+tree+tag+meta+selectedText.Render(title)+pad+styledSlug+dimStyle.Render(cwd))
 	default:
-		fmt.Fprint(w, cursor+tree+tag+meta+title+pad+dimStyle.Render(cwd))
+		fmt.Fprint(w, cursor+tree+tag+meta+title+pad+styledSlug+dimStyle.Render(cwd))
 	}
 }
 
