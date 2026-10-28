@@ -21,11 +21,7 @@ session -- --model x    # append arguments to the resume command
 session -v              # print the version (include it in bug reports)
 ```
 
-Releases are tagged `vX.Y.Z` and `go install …@latest` tracks the newest tag. To install the newest commit from `main` instead:
-
-```sh
-GOPROXY=direct go install github.com/cdpath/session/cmd/session@main
-```
+Releases are tagged `vX.Y.Z`; pushing a tag runs the tests and creates a GitHub release automatically. `go install …@latest` tracks the newest tag.
 
 In the picker:
 
