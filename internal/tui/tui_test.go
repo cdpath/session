@@ -101,7 +101,7 @@ func TestScopeKeyCyclesScopes(t *testing.T) {
 	if !strings.Contains(m.View(), "s scope") {
 		t.Error("help does not mention s scope")
 	}
-	assertRows(t, m, "> droid 1h ago 1 alpha")
+	assertRows(t, m, "> droid 1h ago 1 alpha .")
 
 	m = send(m, press("s"))
 	if h := header(m); h != "~/repo w/ subdirs · all agents" {
@@ -173,7 +173,7 @@ func TestSelectionSurvivesScopeSwitch(t *testing.T) {
 
 	// bravo is not in ~/repo itself, so the cursor falls back to the first row
 	m = send(m, press("s"))
-	assertRows(t, m, "> droid 1h ago 1 alpha")
+	assertRows(t, m, "> droid 1h ago 1 alpha .")
 }
 
 func TestScopeKeyTypesIntoFilter(t *testing.T) {
