@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/cdpath/session/internal/agent"
-	"github.com/cdpath/session/internal/display"
 	"github.com/cdpath/session/internal/index"
 )
 
@@ -478,12 +477,36 @@ func TestSlugDroppedBeforeCwdUnderWidthPressure(t *testing.T) {
 	}
 }
 
-func TestSlugInFilterValue(t *testing.T) {
+func TestSlugInFilterValueRespectsScope(t *testing.T) {
 	s := at("droid", "d1", "alpha", "/repo", 1)
 	s.RepoSlug = "org/repo"
-	it := item{row: display.Row{Session: s}}
-	fv := it.FilterValue()
-	if !strings.Contains(fv, "org/repo") {
-		t.Errorf("FilterValue = %q, should contain slug", fv)
+
+	// All scope: slug included in filter value
+	allCfg := Config{
+		Sessions: []*agent.Session{s},
+		Dir:      home + "/repo",
+		Scope:    index.All,
+		Home:     home,
+		Agents:   []string{"droid"},
+	}
+	allModel := start(allCfg)
+	allItems := allModel.(model).list.Items()
+	if len(allItems) == 0 {
+		t.Fatal("no items")
+	}
+	if fv := allItems[0].FilterValue(); !strings.Contains(fv, "org/repo") {
+		t.Errorf("All scope FilterValue = %q, should contain slug", fv)
+	}
+
+	// Here scope: slug excluded from filter value
+	hereCfg := allCfg
+	hereCfg.Scope = index.Here
+	hereModel := start(hereCfg)
+	hereItems := hereModel.(model).list.Items()
+	if len(hereItems) == 0 {
+		t.Fatal("no items")
+	}
+	if fv := hereItems[0].FilterValue(); strings.Contains(fv, "org/repo") {
+		t.Errorf("Here scope FilterValue = %q, should not contain slug", fv)
 	}
 }

@@ -15,7 +15,8 @@ session -g              # sessions from every directory
 session -a claude,codex # only some agents
 session --subagents     # sub-agent sessions as a tree under their parent (picker: start expanded)
 session --headless      # include SDK / integration sessions
-session --json          # machine-readable output
+session --json          # machine-readable output (includes repo slug)
+session --refresh       # recompute cached repo slugs after changing a remote
 session -- --model x    # append arguments to the resume command
 session -v              # print the version (include it in bug reports)
 ```
@@ -53,9 +54,11 @@ On Enter, `session` changes into the session's original directory and replaces i
 
 Claude sub-agents can't be resumed on their own, so selecting one resumes its parent session.
 
-When stdout is not a terminal, `session` prints a plain table instead of the picker.
+Each row shows the **repo slug** (`owner/repo`, parsed from the git remote) so you can tell which project a session belongs to. Repos on hosts other than `github.com` include the host prefix; repos without a remote show the directory name as a faint fallback.
 
-Session metadata is cached in your user cache directory (`~/Library/Caches/session` on macOS, `~/.cache/session` on Linux). Use `--no-cache` or `--rebuild-cache` if something looks stale, and `--debug` to see files that could not be parsed.
+When stdout is not a terminal, `session` prints a plain table instead of the picker. The global table (`-g`) includes a `REPO` column, and `--json` adds a `repo` field (slug only, omitted when empty).
+
+Session metadata is cached in your user cache directory (`~/Library/Caches/session` on macOS, `~/.cache/session` on Linux). Use `--no-cache` or `--rebuild-cache` if something looks stale, `--refresh` to recompute repo slugs after changing a remote, and `--debug` to see files that could not be parsed.
 
 `session` reads each agent's session files directly. Those formats are undocumented and may change; unreadable files are skipped rather than breaking the list. macOS and Linux only.
 

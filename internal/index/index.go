@@ -263,6 +263,8 @@ func (p *problems) of(s *agent.Session) string {
 
 // resolveRepoSlugs computes repo slugs for sessions, memoized by Cwd,
 // and updates both the working sessions and the cache entries.
+// Previously resolved entries (RepoChecked) are reused on warm runs so
+// sessions outside any repo never re-walk the filesystem.
 func resolveRepoSlugs(out []parsed, seen map[string]cacheEntry, refresh bool) {
 	type cwdResult struct {
 		slug    string
@@ -271,13 +273,13 @@ func resolveRepoSlugs(out []parsed, seen map[string]cacheEntry, refresh bool) {
 	memo := map[string]*cwdResult{}
 
 	if !refresh {
-		for _, p := range out {
-			s := p.session
-			if s == nil || s.Cwd == "" || s.RepoSlug == "" {
+		for _, entry := range seen {
+			if entry.Session == nil || entry.Session.Cwd == "" || !entry.RepoChecked {
 				continue
 			}
-			if _, ok := memo[s.Cwd]; !ok {
-				memo[s.Cwd] = &cwdResult{slug: s.RepoSlug}
+			cwd := entry.Session.Cwd
+			if _, ok := memo[cwd]; !ok {
+				memo[cwd] = &cwdResult{slug: entry.Session.RepoSlug, dirName: entry.RepoDirName}
 			}
 		}
 	}
@@ -313,9 +315,16 @@ func resolveRepoSlugs(out []parsed, seen map[string]cacheEntry, refresh bool) {
 		if entry.Session == nil || entry.Session.Cwd == "" {
 			continue
 		}
-		if r, ok := memo[entry.Session.Cwd]; ok && entry.Session.RepoSlug != r.slug {
-			entry.Session.RepoSlug = r.slug
-			seen[path] = entry
+		if r, ok := memo[entry.Session.Cwd]; ok {
+			changed := entry.Session.RepoSlug != r.slug ||
+				entry.RepoDirName != r.dirName ||
+				!entry.RepoChecked
+			if changed {
+				entry.Session.RepoSlug = r.slug
+				entry.RepoDirName = r.dirName
+				entry.RepoChecked = true
+				seen[path] = entry
+			}
 		}
 	}
 }

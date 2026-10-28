@@ -19,7 +19,7 @@ In the picker the slug sits before the working directory in a distinct low-satur
 3. As a developer, I want remote URLs in any common form normalized (https, `git@github.com:owner/repo.git` SCP-style, `git://`, `.git` suffix, embedded credentials), so that the slug is always clean `owner/repo`.
 4. As a developer, I want non-`github.com` remotes shown with their host (`gitlab.com/owner/repo`), so that GitLab and GitHub Enterprise repos are identifiable too.
 5. As a developer, I want a repository with no usable remote to show its root directory name in the same faint style as the path, so that unpushed local repos still have a project label — visually distinct from a real slug, which is colored.
-6. As a developer, I want a session outside any git repository to show nothing, so that the slot is never noise.
+6. As a developer, I want a session outside any git repository to show nothing, so that the repo label is never noise.
 7. As a developer, I want the slug styled in a distinct low-saturation blue while paths stay faint, so that identity and location read as different kinds of information.
 
 ### Fitting the existing list
@@ -63,7 +63,7 @@ In the picker the slug sits before the working directory in a distinct low-satur
 
 ### Picker
 
-- Row layout: `<tree> <agent> <ago> <turns> <title> <slug> <cwd>`, slug colored `75`, cwd faint as today; the directory-name fallback is rendered in the cwd slot's faint style (uncolored), keeping it visibly distinct from a real slug.
+- Row layout: `<tree> <agent> <ago> <turns> <title> <slug> <cwd>`, slug colored `75`, cwd faint as today; the directory-name fallback is rendered in the same faint style as the cwd (uncolored), keeping it visibly distinct from a real slug.
 - Visibility follows the cwd rules exactly: hidden in the current-directory scope, hidden on sub-agent rows whose parent shows the same label, and under width pressure dropped before the cwd.
 - `FilterValue` gains the displayed repo label.
 

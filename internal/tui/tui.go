@@ -45,9 +45,10 @@ type Config struct {
 }
 
 type item struct {
-	row  display.Row
-	subs int  // descendants of the row's session
-	open bool // whether those descendants are listed below it
+	row         display.Row
+	subs        int    // descendants of the row's session
+	open        bool   // whether those descendants are listed below it
+	filterValue string // pre-computed, scope-aware
 }
 
 // openSet records which sessions are expanded: every session when all is
@@ -70,14 +71,7 @@ func (o *openSet) set(s *agent.Session, open bool) {
 	}
 }
 
-func (i item) FilterValue() string {
-	s := i.row.Session
-	v := s.Agent + " " + display.Title(s)
-	if label := display.RepoLabel(s); label != "" {
-		v += " " + label
-	}
-	return v + " " + s.Cwd
-}
+func (i item) FilterValue() string { return i.filterValue }
 
 type delegate struct {
 	scope  index.Scope
@@ -90,13 +84,7 @@ func (d delegate) repoLabel(s *agent.Session) (label string, isSlug bool) {
 	if d.scope == index.Here {
 		return "", false
 	}
-	if s.RepoSlug != "" {
-		return s.RepoSlug, true
-	}
-	if s.RepoDirName != "" {
-		return s.RepoDirName, false
-	}
-	return "", false
+	return display.RepoLabelInfo(s)
 }
 
 func (d delegate) cwd(s *agent.Session) string {
@@ -304,10 +292,17 @@ func (m *model) rebuild(selected *agent.Session) {
 		}
 	}
 	open := m.activeOpen()
+	d := m.delegate()
 	rows := display.Flatten(roots, open.has)
 	items := make([]list.Item, len(rows))
 	for i, r := range rows {
-		items[i] = item{row: r, subs: r.Session.Descendants(), open: open.has(r.Session)}
+		s := r.Session
+		fv := s.Agent + " " + display.Title(s)
+		if label, _ := d.repoLabel(s); label != "" {
+			fv += " " + label
+		}
+		fv += " " + s.Cwd
+		items[i] = item{row: r, subs: s.Descendants(), open: open.has(s), filterValue: fv}
 	}
 	m.list.SetDelegate(m.delegate())
 	// With a text filter applied, the list re-filters through a command. Run it
