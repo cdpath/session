@@ -380,3 +380,133 @@ func TestRightOnLeafDoesNothing(t *testing.T) {
 	m = send(m, press("right"))
 	assertRows(t, m, before...)
 }
+
+func TestSlugShownInAllScope(t *testing.T) {
+	s := at("droid", "d1", "alpha", "/repo", 1)
+	s.RepoSlug = "org/repo"
+	cfg := Config{
+		Sessions: []*agent.Session{s},
+		Dir:      home + "/repo",
+		Scope:    index.All,
+		Home:     home,
+		Agents:   []string{"droid"},
+	}
+	m := start(cfg)
+	assertRows(t, m, "> droid 1h ago 1 alpha org/repo ~/repo")
+}
+
+func TestSlugHiddenInHereScope(t *testing.T) {
+	s := at("droid", "d1", "alpha", "/repo", 1)
+	s.RepoSlug = "org/repo"
+	cfg := Config{
+		Sessions: []*agent.Session{s},
+		Dir:      home + "/repo",
+		Scope:    index.Here,
+		Home:     home,
+		Agents:   []string{"droid"},
+	}
+	m := start(cfg)
+	assertRows(t, m, "> droid 1h ago 1 alpha")
+}
+
+func TestSlugHiddenOnSubagentWhenMatchingParent(t *testing.T) {
+	parent := at("droid", "plan", "plan", "/repo", 1)
+	parent.RepoSlug = "org/repo"
+	child := at("droid", "build", "build", "/repo", 2)
+	child.RepoSlug = "org/repo"
+	different := at("droid", "docs", "docs", "/repo", 3)
+	different.RepoSlug = "other/lib"
+	parent.Children = []*agent.Session{child, different}
+
+	cfg := Config{
+		Sessions: []*agent.Session{parent},
+		Dir:      home + "/repo",
+		Scope:    index.All,
+		Home:     home,
+		Agents:   []string{"droid"},
+		Expanded: true,
+	}
+	m := start(cfg)
+	assertRows(t, m,
+		"> droid 1h ago 1 plan −2 sub org/repo ~/repo",
+		"├─ droid 2h ago 1 build",
+		"└─ droid 3h ago 1 docs other/lib")
+}
+
+func TestDirNameFallbackShownInAllScope(t *testing.T) {
+	s := at("droid", "d1", "alpha", "/repo", 1)
+	s.RepoDirName = "myproject"
+	cfg := Config{
+		Sessions: []*agent.Session{s},
+		Dir:      home + "/repo",
+		Scope:    index.All,
+		Home:     home,
+		Agents:   []string{"droid"},
+	}
+	m := start(cfg)
+	assertRows(t, m, "> droid 1h ago 1 alpha myproject ~/repo")
+}
+
+func TestSlugDroppedBeforeCwdUnderWidthPressure(t *testing.T) {
+	s := at("droid", "d1", "alpha", "/repo", 1)
+	s.RepoSlug = "org/repo"
+	cfg := Config{
+		Sessions: []*agent.Session{s},
+		Dir:      home + "/repo",
+		Scope:    index.All,
+		Home:     home,
+		Agents:   []string{"droid"},
+	}
+	// Wide: both slug and cwd visible
+	wide := start(cfg)
+	wr := rows(wide)
+	if len(wr) == 0 {
+		t.Fatal("no rows at wide width")
+	}
+	if !strings.Contains(wr[0], "org/repo") || !strings.Contains(wr[0], "~/repo") {
+		t.Errorf("wide: expected both slug and cwd: %q", wr[0])
+	}
+	// Narrow: slug dropped, cwd survives
+	narrow := send(newModel(cfg), tea.WindowSizeMsg{Width: 44, Height: 30})
+	nr := rows(narrow)
+	if len(nr) == 0 {
+		t.Fatal("no rows at narrow width")
+	}
+	if strings.Contains(nr[0], "org/repo") {
+		t.Errorf("narrow: slug should be dropped: %q", nr[0])
+	}
+}
+
+func TestSlugInFilterValueRespectsScope(t *testing.T) {
+	s := at("droid", "d1", "alpha", "/repo", 1)
+	s.RepoSlug = "org/repo"
+
+	// All scope: slug included in filter value
+	allCfg := Config{
+		Sessions: []*agent.Session{s},
+		Dir:      home + "/repo",
+		Scope:    index.All,
+		Home:     home,
+		Agents:   []string{"droid"},
+	}
+	allModel := start(allCfg)
+	allItems := allModel.(model).list.Items()
+	if len(allItems) == 0 {
+		t.Fatal("no items")
+	}
+	if fv := allItems[0].FilterValue(); !strings.Contains(fv, "org/repo") {
+		t.Errorf("All scope FilterValue = %q, should contain slug", fv)
+	}
+
+	// Here scope: slug excluded from filter value
+	hereCfg := allCfg
+	hereCfg.Scope = index.Here
+	hereModel := start(hereCfg)
+	hereItems := hereModel.(model).list.Items()
+	if len(hereItems) == 0 {
+		t.Fatal("no items")
+	}
+	if fv := hereItems[0].FilterValue(); strings.Contains(fv, "org/repo") {
+		t.Errorf("Here scope FilterValue = %q, should not contain slug", fv)
+	}
+}

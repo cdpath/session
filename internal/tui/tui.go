@@ -29,6 +29,7 @@ var (
 	cursorStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true)
 	selectedText = lipgloss.NewStyle().Bold(true)
 	dimStyle     = lipgloss.NewStyle().Faint(true)
+	slugStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("75"))
 	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
 )
 
@@ -44,9 +45,10 @@ type Config struct {
 }
 
 type item struct {
-	row  display.Row
-	subs int  // descendants of the row's session
-	open bool // whether those descendants are listed below it
+	row         display.Row
+	subs        int    // descendants of the row's session
+	open        bool   // whether those descendants are listed below it
+	filterValue string // pre-computed, scope-aware
 }
 
 // openSet records which sessions are expanded: every session when all is
@@ -69,16 +71,20 @@ func (o *openSet) set(s *agent.Session, open bool) {
 	}
 }
 
-func (i item) FilterValue() string {
-	s := i.row.Session
-	return s.Agent + " " + display.Title(s) + " " + s.Cwd
-}
+func (i item) FilterValue() string { return i.filterValue }
 
 type delegate struct {
 	scope  index.Scope
 	scoper *index.Scoper
 	home   string
 	now    time.Time
+}
+
+func (d delegate) repoLabel(s *agent.Session) (label string, isSlug bool) {
+	if d.scope == index.Here {
+		return "", false
+	}
+	return display.RepoLabelInfo(s)
 }
 
 func (d delegate) cwd(s *agent.Session) string {
@@ -115,24 +121,50 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, li list.Item) {
 
 	width := m.Width() - 2 - lipgloss.Width(tree)
 	title := display.Title(s) + display.SubMarker(it.subs, it.open)
+
+	var slug string
+	var slugIsReal bool
+	if label, real := d.repoLabel(s); label != "" {
+		if it.row.Parent == nil {
+			slug, slugIsReal = "  "+label, real
+		} else if pLabel, _ := d.repoLabel(it.row.Parent); label != pLabel {
+			slug, slugIsReal = "  "+label, real
+		}
+	}
+
 	var cwd string
 	if c := d.cwd(s); c != "" && (it.row.Parent == nil || c != d.cwd(it.row.Parent)) {
 		cwd = "  " + c
 	}
-	room := width - lipgloss.Width(tag) - lipgloss.Width(meta) - lipgloss.Width(cwd)
+
+	room := width - lipgloss.Width(tag) - lipgloss.Width(meta) - lipgloss.Width(slug) - lipgloss.Width(cwd)
+	if room < 10 && slug != "" {
+		slug = ""
+		room = width - lipgloss.Width(tag) - lipgloss.Width(meta) - lipgloss.Width(cwd)
+	}
 	if room < 10 {
-		room, cwd = width-lipgloss.Width(tag)-lipgloss.Width(meta), ""
+		cwd = ""
+		room = width - lipgloss.Width(tag) - lipgloss.Width(meta)
 	}
 	title = ansi.Truncate(title, max(room, 1), "…")
 	pad := strings.Repeat(" ", max(room-lipgloss.Width(title), 0))
 
+	var styledSlug string
+	if slug != "" {
+		if slugIsReal {
+			styledSlug = slugStyle.Render(slug)
+		} else {
+			styledSlug = dimStyle.Render(slug)
+		}
+	}
+
 	switch {
 	case s.Problem != "":
-		fmt.Fprint(w, cursor+tree+dimStyle.Render(s.Agent+strings.Repeat(" ", max(7-len(s.Agent), 0))+meta+title+pad+cwd))
+		fmt.Fprint(w, cursor+tree+dimStyle.Render(s.Agent+strings.Repeat(" ", max(7-len(s.Agent), 0))+meta+title+pad+slug+cwd))
 	case selected:
-		fmt.Fprint(w, cursor+tree+tag+meta+selectedText.Render(title)+pad+dimStyle.Render(cwd))
+		fmt.Fprint(w, cursor+tree+tag+meta+selectedText.Render(title)+pad+styledSlug+dimStyle.Render(cwd))
 	default:
-		fmt.Fprint(w, cursor+tree+tag+meta+title+pad+dimStyle.Render(cwd))
+		fmt.Fprint(w, cursor+tree+tag+meta+title+pad+styledSlug+dimStyle.Render(cwd))
 	}
 }
 
@@ -260,10 +292,17 @@ func (m *model) rebuild(selected *agent.Session) {
 		}
 	}
 	open := m.activeOpen()
+	d := m.delegate()
 	rows := display.Flatten(roots, open.has)
 	items := make([]list.Item, len(rows))
 	for i, r := range rows {
-		items[i] = item{row: r, subs: r.Session.Descendants(), open: open.has(r.Session)}
+		s := r.Session
+		fv := s.Agent + " " + display.Title(s)
+		if label, _ := d.repoLabel(s); label != "" {
+			fv += " " + label
+		}
+		fv += " " + s.Cwd
+		items[i] = item{row: r, subs: s.Descendants(), open: open.has(s), filterValue: fv}
 	}
 	m.list.SetDelegate(m.delegate())
 	// With a text filter applied, the list re-filters through a command. Run it

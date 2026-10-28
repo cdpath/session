@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/cdpath/session/internal/index"
 )
 
 // rewriteSameSize replaces old with new (same length) in a file and restores
@@ -112,6 +114,81 @@ func TestCacheFromOtherSchemaVersionIsDiscarded(t *testing.T) {
 	}
 
 	assertList(t, f.list(opts), `droid d1 "Bravo" turns=1`+"\n")
+}
+
+func TestRepoSlugCachedAcrossRuns(t *testing.T) {
+	f := newFixture(t)
+	proj := f.project("cached")
+	f.initRepo(proj, "https://github.com/team/cached.git")
+	f.droidSession(proj, "d1", 1, nil, droidUser("hi"))
+	opts := f.options(proj)
+	opts.CachePath = filepath.Join(f.home, "cache", "index.json")
+
+	assertList(t, f.list(opts), `droid d1 "hi" turns=1 repo=team/cached`+"\n")
+
+	os.RemoveAll(filepath.Join(proj, ".git"))
+	assertList(t, f.list(opts), `droid d1 "hi" turns=1 repo=team/cached`+"\n")
+}
+
+func TestRefreshRecomputesSlugs(t *testing.T) {
+	f := newFixture(t)
+	proj := f.project("refresh")
+	f.initRepo(proj, "https://github.com/old/name.git")
+	f.droidSession(proj, "d1", 1, nil, droidUser("hi"))
+	opts := f.options(proj)
+	opts.CachePath = filepath.Join(f.home, "cache", "index.json")
+	assertList(t, f.list(opts), `droid d1 "hi" turns=1 repo=old/name`+"\n")
+
+	config := "[remote \"origin\"]\n\turl = https://github.com/new/name.git\n"
+	os.WriteFile(filepath.Join(proj, ".git", "config"), []byte(config), 0o644)
+
+	// Without refresh: cached slug persists
+	assertList(t, f.list(opts), `droid d1 "hi" turns=1 repo=old/name`+"\n")
+
+	// With refresh: slug is recomputed
+	opts.Refresh = true
+	assertList(t, f.list(opts), `droid d1 "hi" turns=1 repo=new/name`+"\n")
+
+	// Subsequent run without refresh uses updated cache
+	opts.Refresh = false
+	assertList(t, f.list(opts), `droid d1 "hi" turns=1 repo=new/name`+"\n")
+}
+
+func TestEmptySlugCachedWithoutRewalk(t *testing.T) {
+	f := newFixture(t)
+
+	// Session in a repo with no remote: RepoDirName cached
+	noRemote := f.project("local-repo")
+	f.initRepoNoRemote(noRemote)
+	f.droidSession(noRemote, "d-nr", 1, nil, droidUser("local"))
+
+	// Session outside any repo: empty result cached
+	noRepo := f.project("plain")
+	f.droidSession(noRepo, "d-plain", 2, nil, droidUser("plain"))
+
+	opts := f.options(noRemote)
+	opts.Scope = index.All
+	opts.CachePath = filepath.Join(f.home, "cache", "index.json")
+	assertList(t, f.list(opts), `
+		droid d-plain "plain" turns=1
+		droid d-nr "local" turns=1 repodir=local-repo
+	`)
+
+	// Remove .git from both to prove warm run uses cache (no re-walk)
+	os.RemoveAll(filepath.Join(noRemote, ".git"))
+	assertList(t, f.list(opts), `
+		droid d-plain "plain" turns=1
+		droid d-nr "local" turns=1 repodir=local-repo
+	`)
+
+	// Verify cache has RepoChecked set
+	data, err := os.ReadFile(opts.CachePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"repoChecked":true`) {
+		t.Error("cache should contain repoChecked:true")
+	}
 }
 
 func TestCodexTitlesAreFreshEvenWhenRolloutIsCached(t *testing.T) {

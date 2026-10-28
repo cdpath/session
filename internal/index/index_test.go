@@ -377,3 +377,41 @@ func TestDroidIgnoresInjectedMessagesAndHidesEmptySessions(t *testing.T) {
 		droid d-real "real question" turns=1
 	`)
 }
+
+func TestRepoSlugComputedFromRemote(t *testing.T) {
+	f := newFixture(t)
+	proj := f.project("Developer/app")
+	f.initRepo(proj, "https://github.com/acme/app.git")
+	f.droidSession(proj, "d1", 1, nil, droidUser("hi"))
+
+	assertList(t, f.list(f.options(proj)), `droid d1 "hi" turns=1 repo=acme/app`+"\n")
+}
+
+func TestRepoSlugFromSubdirectory(t *testing.T) {
+	f := newFixture(t)
+	repo := f.project("repo")
+	f.initRepo(repo, "git@github.com:org/mono.git")
+	sub := f.project("repo/services/api")
+	f.droidSession(sub, "d1", 1, nil, droidUser("in sub"))
+
+	opts := f.options(sub)
+	opts.Scope = index.All
+	assertList(t, f.list(opts), `droid d1 "in sub" turns=1 repo=org/mono`+"\n")
+}
+
+func TestRepoSlugNoRemoteFallsBackToDirName(t *testing.T) {
+	f := newFixture(t)
+	proj := f.project("myproject")
+	f.initRepoNoRemote(proj)
+	f.droidSession(proj, "d1", 1, nil, droidUser("local"))
+
+	assertList(t, f.list(f.options(proj)), `droid d1 "local" turns=1 repodir=myproject`+"\n")
+}
+
+func TestRepoSlugOutsideRepoIsBlank(t *testing.T) {
+	f := newFixture(t)
+	proj := f.project("norepo")
+	f.droidSession(proj, "d1", 1, nil, droidUser("outside"))
+
+	assertList(t, f.list(f.options(proj)), `droid d1 "outside" turns=1`+"\n")
+}

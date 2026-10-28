@@ -10,7 +10,7 @@ import (
 
 // schemaVersion must be bumped whenever any provider's parsing changes, so
 // caches written by older builds are discarded.
-const schemaVersion = 1
+const schemaVersion = 2
 
 type cacheFile struct {
 	SchemaVersion int                   `json:"schemaVersion"`
@@ -18,9 +18,11 @@ type cacheFile struct {
 }
 
 type cacheEntry struct {
-	Size    int64          `json:"size"`
-	ModTime int64          `json:"modTime"`
-	Session *agent.Session `json:"session"` // nil: the file is not a session
+	Size        int64          `json:"size"`
+	ModTime     int64          `json:"modTime"`
+	Session     *agent.Session `json:"session"` // nil: the file is not a session
+	RepoDirName string         `json:"repoDirName,omitempty"`
+	RepoChecked bool           `json:"repoChecked,omitempty"`
 }
 
 // DefaultCachePath is the per-user cache location.
@@ -74,6 +76,7 @@ func (e cacheEntry) cached() *agent.Session {
 		return nil
 	}
 	c := *e.Session
+	c.RepoDirName = e.RepoDirName
 	return &c
 }
 
