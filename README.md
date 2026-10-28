@@ -21,7 +21,7 @@ session -- --model x    # append arguments to the resume command
 session -v              # print the version (include it in bug reports)
 ```
 
-Until the repo has release tags, `go install …@latest` can lag behind because the Go module proxy caches it. To get the newest commit:
+Releases are tagged `vX.Y.Z` and `go install …@latest` tracks the newest tag. To install the newest commit from `main` instead:
 
 ```sh
 GOPROXY=direct go install github.com/cdpath/session/cmd/session@main
@@ -59,6 +59,8 @@ Each row shows the **repo slug** (`owner/repo`, parsed from the git remote) so y
 When stdout is not a terminal, `session` prints a plain table instead of the picker. The global table (`-g`) includes a `REPO` column, and `--json` adds a `repo` field (slug only, omitted when empty).
 
 Session metadata is cached in your user cache directory (`~/Library/Caches/session` on macOS, `~/.cache/session` on Linux). Use `--no-cache` or `--rebuild-cache` if something looks stale, `--refresh` to recompute repo slugs after changing a remote, and `--debug` to see files that could not be parsed.
+
+Developers: `make build` / `make test` build and test; `make tag VERSION=vX.Y.Z` tests, tags and pushes a release.
 
 `session` reads each agent's session files directly. Those formats are undocumented and may change; unreadable files are skipped rather than breaking the list. macOS and Linux only.
 
