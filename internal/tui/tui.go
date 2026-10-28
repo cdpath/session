@@ -81,23 +81,16 @@ type delegate struct {
 }
 
 func (d delegate) repoLabel(s *agent.Session) (label string, isSlug bool) {
-	if d.scope == index.Here {
-		return "", false
-	}
 	return display.RepoLabelInfo(s)
 }
 
 func (d delegate) cwd(s *agent.Session) string {
-	switch d.scope {
-	case index.Subdirs:
+	if d.scope != index.All {
 		if rel, ok := d.scoper.Rel(s.Cwd); ok {
 			return rel
 		}
-		return display.ShortPath(s.Cwd, d.home)
-	case index.All:
-		return display.ShortPath(s.Cwd, d.home)
 	}
-	return ""
+	return display.ShortPath(s.Cwd, d.home)
 }
 
 func (delegate) Height() int                         { return 1 }

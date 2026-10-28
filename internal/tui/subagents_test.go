@@ -42,29 +42,29 @@ func family() Config {
 
 func TestSubagentsStartCollapsed(t *testing.T) {
 	assertRows(t, start(family()),
-		"> droid 1h ago 1 plan +3 sub",
-		"codex 5h ago 1 solo",
-		"claude 6h ago 1 ship +1 sub")
+		"> droid 1h ago 1 plan +3 sub .",
+		"codex 5h ago 1 solo .",
+		"claude 6h ago 1 ship +1 sub .")
 }
 
 func TestRightExpandsOneLevelAtATime(t *testing.T) {
 	m := send(start(family()), press("right"))
 	assertRows(t, m,
-		"> droid 1h ago 1 plan −3 sub",
+		"> droid 1h ago 1 plan −3 sub .",
 		"├─ droid 2h ago 1 build +1 sub",
 		"└─ droid 4h ago 1 docs",
-		"codex 5h ago 1 solo",
-		"claude 6h ago 1 ship +1 sub")
+		"codex 5h ago 1 solo .",
+		"claude 6h ago 1 ship +1 sub .")
 
 	m = send(m, press("j"))
 	m = send(m, press("l"))
 	assertRows(t, m,
-		"droid 1h ago 1 plan −3 sub",
+		"droid 1h ago 1 plan −3 sub .",
 		"> ├─ droid 2h ago 1 build −1 sub",
 		"│ └─ droid 3h ago 1 probe",
 		"└─ droid 4h ago 1 docs",
-		"codex 5h ago 1 solo",
-		"claude 6h ago 1 ship +1 sub")
+		"codex 5h ago 1 solo .",
+		"claude 6h ago 1 ship +1 sub .")
 }
 
 func TestLeftCollapses(t *testing.T) {
@@ -75,25 +75,25 @@ func TestLeftCollapses(t *testing.T) {
 
 	m = send(m, press("left"))
 	assertRows(t, m,
-		"droid 1h ago 1 plan −3 sub",
+		"droid 1h ago 1 plan −3 sub .",
 		"> ├─ droid 2h ago 1 build +1 sub",
 		"└─ droid 4h ago 1 docs",
-		"codex 5h ago 1 solo",
-		"claude 6h ago 1 ship +1 sub")
+		"codex 5h ago 1 solo .",
+		"claude 6h ago 1 ship +1 sub .")
 
 	// on a sub-agent row, ← goes to the parent and closes it
 	m = send(m, press("h"))
 	assertRows(t, m,
-		"> droid 1h ago 1 plan +3 sub",
-		"codex 5h ago 1 solo",
-		"claude 6h ago 1 ship +1 sub")
+		"> droid 1h ago 1 plan +3 sub .",
+		"codex 5h ago 1 solo .",
+		"claude 6h ago 1 ship +1 sub .")
 
 	// on a closed top-level row, ← does nothing
 	m = send(m, press("left"))
 	assertRows(t, m,
-		"> droid 1h ago 1 plan +3 sub",
-		"codex 5h ago 1 solo",
-		"claude 6h ago 1 ship +1 sub")
+		"> droid 1h ago 1 plan +3 sub .",
+		"codex 5h ago 1 solo .",
+		"claude 6h ago 1 ship +1 sub .")
 }
 
 func TestCollapsingFromGrandchildClosesItsParentOnly(t *testing.T) {
@@ -103,11 +103,11 @@ func TestCollapsingFromGrandchildClosesItsParentOnly(t *testing.T) {
 	}
 	m = send(m, press("left"))
 	assertRows(t, m,
-		"droid 1h ago 1 plan −3 sub",
+		"droid 1h ago 1 plan −3 sub .",
 		"> ├─ droid 2h ago 1 build +1 sub",
 		"└─ droid 4h ago 1 docs",
-		"codex 5h ago 1 solo",
-		"claude 6h ago 1 ship +1 sub")
+		"codex 5h ago 1 solo .",
+		"claude 6h ago 1 ship +1 sub .")
 }
 
 func TestFShowsOnlySessionsWithSubagentsExpanded(t *testing.T) {
@@ -116,21 +116,21 @@ func TestFShowsOnlySessionsWithSubagentsExpanded(t *testing.T) {
 		t.Errorf("header = %q", h)
 	}
 	assertRows(t, m,
-		"> droid 1h ago 1 plan −3 sub",
+		"> droid 1h ago 1 plan −3 sub .",
 		"├─ droid 2h ago 1 build −1 sub",
 		"│ └─ droid 3h ago 1 probe",
 		"└─ droid 4h ago 1 docs",
-		"claude 6h ago 1 ship −1 sub",
+		"claude 6h ago 1 ship −1 sub .",
 		"└─ claude 7h ago 1 lint",
-		"droid 8h ago 1 stray (orphan)")
+		"droid 8h ago 1 stray (orphan) .")
 
 	// ← and → still work inside f
 	m = send(m, press("left"))
 	assertRows(t, m,
-		"> droid 1h ago 1 plan +3 sub",
-		"claude 6h ago 1 ship −1 sub",
+		"> droid 1h ago 1 plan +3 sub .",
+		"claude 6h ago 1 ship −1 sub .",
 		"└─ claude 7h ago 1 lint",
-		"droid 8h ago 1 stray (orphan)")
+		"droid 8h ago 1 stray (orphan) .")
 }
 
 func TestFOffRestoresEarlierExpansion(t *testing.T) {
@@ -152,7 +152,7 @@ func TestFOffRestoresEarlierExpansion(t *testing.T) {
 	m = send(m, press("left"))
 	m = send(m, press("f"))
 	m = send(m, press("f"))
-	if got := rows(m)[0]; got != "> droid 1h ago 1 plan −3 sub" {
+	if got := rows(m)[0]; got != "> droid 1h ago 1 plan −3 sub ." {
 		t.Errorf("first row = %q, want plan expanded again", got)
 	}
 }
@@ -185,9 +185,9 @@ func TestTextFilterSurvivesF(t *testing.T) {
 	m = send(m, press("/"))
 	m = send(m, press("ship"))
 	m = send(m, press("enter"))
-	assertRows(t, m, "> claude 6h ago 1 ship +1 sub")
+	assertRows(t, m, "> claude 6h ago 1 ship +1 sub .")
 	m = send(m, press("f"))
-	assertRows(t, m, "> claude 6h ago 1 ship −1 sub")
+	assertRows(t, m, "> claude 6h ago 1 ship −1 sub .")
 }
 
 func TestExpandingReappliesTextFilter(t *testing.T) {
@@ -197,7 +197,7 @@ func TestExpandingReappliesTextFilter(t *testing.T) {
 	m = send(m, press("enter"))
 	m = send(m, press("right"))
 	assertRows(t, m,
-		"> claude 6h ago 1 ship −1 sub",
+		"> claude 6h ago 1 ship −1 sub .",
 		"└─ claude 7h ago 1 lint")
 }
 
@@ -205,14 +205,14 @@ func TestExpandedStartShowsEveryTreeAndOrphans(t *testing.T) {
 	cfg := family()
 	cfg.Expanded = true
 	assertRows(t, start(cfg),
-		"> droid 1h ago 1 plan −3 sub",
+		"> droid 1h ago 1 plan −3 sub .",
 		"├─ droid 2h ago 1 build −1 sub",
 		"│ └─ droid 3h ago 1 probe",
 		"└─ droid 4h ago 1 docs",
-		"codex 5h ago 1 solo",
-		"claude 6h ago 1 ship −1 sub",
+		"codex 5h ago 1 solo .",
+		"claude 6h ago 1 ship −1 sub .",
 		"└─ claude 7h ago 1 lint",
-		"droid 8h ago 1 stray (orphan)")
+		"droid 8h ago 1 stray (orphan) .")
 }
 
 func TestFWithNothingToShow(t *testing.T) {
@@ -235,38 +235,37 @@ func numbered(n int) Config {
 	return cfg
 }
 
-func firstTitle(t *testing.T, m tea.Model) string {
+func firstRow(t *testing.T, m tea.Model) string {
 	t.Helper()
 	r := rows(m)
 	if len(r) == 0 {
 		t.Fatal("no rows")
 	}
-	f := strings.Fields(r[0])
-	return f[len(f)-1]
+	return r[0]
 }
 
 func TestPagingKeys(t *testing.T) {
 	m := start(numbered(80)) // 30 rows tall: several pages
-	page1 := firstTitle(t, m)
+	page1 := firstRow(t, m)
 	for _, k := range []string{"pgdown", "d", "ctrl+f"} {
 		next := send(m, press(k))
-		if firstTitle(t, next) == page1 {
+		if firstRow(t, next) == page1 {
 			t.Errorf("%s did not go to the next page", k)
 		}
 		for _, back := range []string{"pgup", "u", "b", "ctrl+b"} {
-			if got := firstTitle(t, send(next, press(back))); got != page1 {
+			if got := firstRow(t, send(next, press(back))); got != page1 {
 				t.Errorf("%s then %s: first row %s, want %s", k, back, got, page1)
 			}
 		}
 	}
 	for _, k := range []string{"right", "l"} {
-		if got := firstTitle(t, send(m, press(k))); got != page1 {
+		if got := firstRow(t, send(m, press(k))); got != page1 {
 			t.Errorf("%s changed page", k)
 		}
 	}
 	page2 := send(m, press("pgdown"))
 	for _, k := range []string{"left", "h"} {
-		if got, want := firstTitle(t, send(page2, press(k))), firstTitle(t, page2); got != want {
+		if got, want := firstRow(t, send(page2, press(k))), firstRow(t, page2); got != want {
 			t.Errorf("%s changed page: %s, want %s", k, got, want)
 		}
 	}
@@ -309,11 +308,11 @@ func TestReexpandingOpensOneLevelAgain(t *testing.T) {
 		m = send(m, press(k))
 	}
 	assertRows(t, m,
-		"> droid 1h ago 1 plan −3 sub",
+		"> droid 1h ago 1 plan −3 sub .",
 		"├─ droid 2h ago 1 build +1 sub",
 		"└─ droid 4h ago 1 docs",
-		"codex 5h ago 1 solo",
-		"claude 6h ago 1 ship +1 sub")
+		"codex 5h ago 1 solo .",
+		"claude 6h ago 1 ship +1 sub .")
 }
 
 // line returns the unstyled view line containing s.
@@ -359,11 +358,17 @@ func TestSubagentRowsAreIndentedAsAWhole(t *testing.T) {
 }
 
 func TestSubagentCwdShownOnlyWhenItDiffersFromParent(t *testing.T) {
-	cfg := family()
-	cfg.Expanded = true
-	cfg.Scope = index.All
-	cfg.Sessions[0].Children[0].Children[0].Cwd = home + "/repo/web" // probe
-	assertRows(t, start(cfg),
+	scoped := []string{
+		"> droid 1h ago 1 plan −3 sub .",
+		"├─ droid 2h ago 1 build −1 sub",
+		"│ └─ droid 3h ago 1 probe ./web",
+		"└─ droid 4h ago 1 docs",
+		"codex 5h ago 1 solo .",
+		"claude 6h ago 1 ship −1 sub .",
+		"└─ claude 7h ago 1 lint",
+		"droid 8h ago 1 stray (orphan) .",
+	}
+	global := []string{
 		"> droid 1h ago 1 plan −3 sub ~/repo",
 		"├─ droid 2h ago 1 build −1 sub",
 		"│ └─ droid 3h ago 1 probe ~/repo/web",
@@ -371,7 +376,18 @@ func TestSubagentCwdShownOnlyWhenItDiffersFromParent(t *testing.T) {
 		"codex 5h ago 1 solo ~/repo",
 		"claude 6h ago 1 ship −1 sub ~/repo",
 		"└─ claude 7h ago 1 lint",
-		"droid 8h ago 1 stray (orphan) ~/repo")
+		"droid 8h ago 1 stray (orphan) ~/repo",
+	}
+	for _, tc := range []struct {
+		scope index.Scope
+		want  []string
+	}{{index.Here, scoped}, {index.Subdirs, scoped}, {index.All, global}} {
+		cfg := family()
+		cfg.Expanded = true
+		cfg.Scope = tc.scope
+		cfg.Sessions[0].Children[0].Children[0].Cwd = home + "/repo/web" // probe
+		assertRows(t, start(cfg), tc.want...)
+	}
 }
 
 func TestRightOnLeafDoesNothing(t *testing.T) {
@@ -395,7 +411,7 @@ func TestSlugShownInAllScope(t *testing.T) {
 	assertRows(t, m, "> droid 1h ago 1 alpha org/repo ~/repo")
 }
 
-func TestSlugHiddenInHereScope(t *testing.T) {
+func TestSlugShownInHereScope(t *testing.T) {
 	s := at("droid", "d1", "alpha", "/repo", 1)
 	s.RepoSlug = "org/repo"
 	cfg := Config{
@@ -406,31 +422,99 @@ func TestSlugHiddenInHereScope(t *testing.T) {
 		Agents:   []string{"droid"},
 	}
 	m := start(cfg)
-	assertRows(t, m, "> droid 1h ago 1 alpha")
+	assertRows(t, m, "> droid 1h ago 1 alpha org/repo .")
 }
 
 func TestSlugHiddenOnSubagentWhenMatchingParent(t *testing.T) {
-	parent := at("droid", "plan", "plan", "/repo", 1)
-	parent.RepoSlug = "org/repo"
-	child := at("droid", "build", "build", "/repo", 2)
-	child.RepoSlug = "org/repo"
-	different := at("droid", "docs", "docs", "/repo", 3)
-	different.RepoSlug = "other/lib"
-	parent.Children = []*agent.Session{child, different}
+	newConfig := func(scope index.Scope) Config {
+		parent := at("droid", "plan", "plan", "/repo", 1)
+		parent.RepoSlug = "org/repo"
+		child := at("droid", "build", "build", "/repo", 2)
+		child.RepoSlug = "org/repo"
+		different := at("droid", "docs", "docs", "/repo", 3)
+		different.RepoSlug = "other/lib"
+		parent.Children = []*agent.Session{child, different}
+		return Config{
+			Sessions: []*agent.Session{parent},
+			Dir:      home + "/repo",
+			Scope:    scope,
+			Home:     home,
+			Agents:   []string{"droid"},
+			Expanded: true,
+		}
+	}
+	for _, tc := range []struct {
+		scope index.Scope
+		cwd   string
+	}{{index.Here, "."}, {index.Subdirs, "."}, {index.All, "~/repo"}} {
+		assertRows(t, start(newConfig(tc.scope)),
+			"> droid 1h ago 1 plan −2 sub org/repo "+tc.cwd,
+			"├─ droid 2h ago 1 build",
+			"└─ droid 3h ago 1 docs other/lib")
+	}
+}
 
+// PRD 0005 story 4: a sub-agent that ran elsewhere keeps its identity in every
+// scope — outside the starting directory as a home-shortened path, below it as
+// a relative one, with its own slug when the repository differs.
+func TestSubagentOutsideStartingDirShownInEveryScope(t *testing.T) {
+	for _, tc := range []struct {
+		scope index.Scope
+		want  []string
+	}{
+		{index.Here, []string{
+			"> droid 1h ago 1 plan −2 sub org/repo .",
+			"├─ droid 2h ago 1 build other/lib ~/other",
+			"└─ droid 3h ago 1 docs ./web",
+		}},
+		{index.Subdirs, []string{
+			"> droid 1h ago 1 plan −2 sub org/repo .",
+			"├─ droid 2h ago 1 build other/lib ~/other",
+			"└─ droid 3h ago 1 docs ./web",
+		}},
+		{index.All, []string{
+			"> droid 1h ago 1 plan −2 sub org/repo ~/repo",
+			"├─ droid 2h ago 1 build other/lib ~/other",
+			"└─ droid 3h ago 1 docs ~/repo/web",
+		}},
+	} {
+		parent := at("droid", "plan", "plan", "/repo", 1)
+		parent.RepoSlug = "org/repo"
+		outside := at("droid", "build", "build", "/other", 2)
+		outside.RepoSlug = "other/lib"
+		below := at("droid", "docs", "docs", "/repo/web", 3)
+		below.RepoSlug = "org/repo"
+		parent.Children = []*agent.Session{outside, below}
+		cfg := Config{
+			Sessions: []*agent.Session{parent},
+			Dir:      home + "/repo",
+			Scope:    tc.scope,
+			Home:     home,
+			Agents:   []string{"droid"},
+			Expanded: true,
+		}
+		assertRows(t, start(cfg), tc.want...)
+	}
+}
+
+// PRD 0005 story 2: pressing s never changes a row's slot layout — the slug
+// and a cwd are on screen in every scope, only the cwd's form changes.
+func TestRowSlotsStableAcrossScopeSwitches(t *testing.T) {
+	s := at("droid", "d1", "alpha", "/repo", 1)
+	s.RepoSlug = "org/repo"
 	cfg := Config{
-		Sessions: []*agent.Session{parent},
+		Sessions: []*agent.Session{s},
 		Dir:      home + "/repo",
-		Scope:    index.All,
+		Scope:    index.Here,
 		Home:     home,
 		Agents:   []string{"droid"},
-		Expanded: true,
 	}
 	m := start(cfg)
-	assertRows(t, m,
-		"> droid 1h ago 1 plan −2 sub org/repo ~/repo",
-		"├─ droid 2h ago 1 build",
-		"└─ droid 3h ago 1 docs other/lib")
+	assertRows(t, m, "> droid 1h ago 1 alpha org/repo .")
+	m = send(m, press("s"))
+	assertRows(t, m, "> droid 1h ago 1 alpha org/repo .")
+	m = send(m, press("s"))
+	assertRows(t, m, "> droid 1h ago 1 alpha org/repo ~/repo")
 }
 
 func TestDirNameFallbackShownInAllScope(t *testing.T) {
@@ -477,36 +561,25 @@ func TestSlugDroppedBeforeCwdUnderWidthPressure(t *testing.T) {
 	}
 }
 
-func TestSlugInFilterValueRespectsScope(t *testing.T) {
+func TestSlugInFilterValueInAllScopes(t *testing.T) {
 	s := at("droid", "d1", "alpha", "/repo", 1)
 	s.RepoSlug = "org/repo"
 
-	// All scope: slug included in filter value
-	allCfg := Config{
-		Sessions: []*agent.Session{s},
-		Dir:      home + "/repo",
-		Scope:    index.All,
-		Home:     home,
-		Agents:   []string{"droid"},
-	}
-	allModel := start(allCfg)
-	allItems := allModel.(model).list.Items()
-	if len(allItems) == 0 {
-		t.Fatal("no items")
-	}
-	if fv := allItems[0].FilterValue(); !strings.Contains(fv, "org/repo") {
-		t.Errorf("All scope FilterValue = %q, should contain slug", fv)
-	}
-
-	// Here scope: slug excluded from filter value
-	hereCfg := allCfg
-	hereCfg.Scope = index.Here
-	hereModel := start(hereCfg)
-	hereItems := hereModel.(model).list.Items()
-	if len(hereItems) == 0 {
-		t.Fatal("no items")
-	}
-	if fv := hereItems[0].FilterValue(); strings.Contains(fv, "org/repo") {
-		t.Errorf("Here scope FilterValue = %q, should not contain slug", fv)
+	for _, scope := range []index.Scope{index.Here, index.Subdirs, index.All} {
+		cfg := Config{
+			Sessions: []*agent.Session{s},
+			Dir:      home + "/repo",
+			Scope:    scope,
+			Home:     home,
+			Agents:   []string{"droid"},
+		}
+		m := start(cfg)
+		items := m.(model).list.Items()
+		if len(items) == 0 {
+			t.Fatalf("scope %d: no items", scope)
+		}
+		if fv := items[0].FilterValue(); !strings.Contains(fv, "org/repo") {
+			t.Errorf("scope %d: FilterValue = %q, should contain slug", scope, fv)
+		}
 	}
 }
